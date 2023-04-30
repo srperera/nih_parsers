@@ -1,0 +1,9 @@
+numba==0.53.1
+ray==1.7.0
+tqdm==4.62.2
+pandas==1.2.5
+numpy==1.21.1
+h5py==3.4.0
+matplotlib==3.4.2
+PyYAML==5.4.1
+rich==10.12.0

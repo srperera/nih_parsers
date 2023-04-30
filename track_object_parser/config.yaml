@@ -1,0 +1,18 @@
+# path to the data folder
+# example --> data_dir: 'data_dir/single_file/'
+data_dir: ['data_dir/new/',
+           'data_dir/multiple_files']
+
+# path to the statistics categories
+# example --> stats_category_path: 'stats_categories.txt'
+stats_category_path: 'stats_categories.txt'
+
+# save data folder
+# example --> save_dir: 'save_dir/example_file/'
+save_dir: 'save_dir/'
+
+# remove list
+remove_list_path: 'remove_list.txt'
+
+# special items
+special_items: ['Channel_Name', 'ID', 'ID_Object']

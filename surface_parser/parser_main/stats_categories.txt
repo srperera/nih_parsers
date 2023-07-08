@@ -1,9 +1,0 @@
-ID
-Position X
-Position Y
-Position Z
-Intensity Mean_channel_1
-Intensity Mean_channel_2
-Intensity Mean_channel_3
-Intensity Mean_channel_4
-Intensity Mean_channel_5

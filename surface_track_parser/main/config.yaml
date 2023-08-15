@@ -2,14 +2,20 @@
 # example --> data_dir: 'data_dir/single_file/'
 data_dir: ['../../data/surface_track_parser_dev_data/']
 
+save_dir: ['surface_track_parser/temp']
+
 # valid surface (ie: surface you want to extract data from)
 # NOT ZERO INDEX, VALUES START AT 1
 valid_surface: 1
+valid_surface_dict: {
+  1: "Blue",
+  2: "Green",
+}
 
 # type of data extraction: surface, track or first
-parser_type: 'surface'
+parser_type: 'first'
 
 # path to the statistics categories
 # example --> stats_category_path: 'stats_categories.txt'
 # ensure the right category txt file is provided based on parser type
-stats_category_path: 'stats_categories_surface.txt'
+stats_category_path: 'stats_categories_first.txt'

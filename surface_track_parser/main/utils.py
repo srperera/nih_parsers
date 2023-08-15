@@ -526,12 +526,29 @@ def get_category_function(parser_type: str):
         raise ValueError("Invalid Parser Type")
 
 
-def get_save_filepath(parser_type: str, filename: str):
+# def get_save_filepath(parser_type: str, filename: str):
+#     if parser_type == "track":
+#         return os.path.splitext(filename)[0] + "_track.csv"
+#     elif parser_type == "surface":
+#         return os.path.splitext(filename)[0] + "_surface.csv"
+#     elif parser_type == "first":
+#         return os.path.splitext(filename)[0] + "_first.csv"
+#     else:
+#         raise ValueError("Invalid Parser Type")
+
+
+def get_save_filepath(parser_type: str, dir_path: str, filename: str):
     if parser_type == "track":
-        return os.path.splitext(filename)[0] + "_track.csv"
+        file_name = os.path.basename(filename)
+        file_name = os.path.splitext(file_name)[0] + "_track.csv"
+        return os.path.join(dir_path, file_name)
     elif parser_type == "surface":
-        return os.path.splitext(filename)[0] + "_surface.csv"
+        file_name = os.path.basename(filename)
+        file_name = os.path.splitext(file_name)[0] + "_surface.csv"
+        return os.path.join(dir_path, file_name)
     elif parser_type == "first":
-        return os.path.splitext(filename)[0] + "_first.csv"
+        file_name = os.path.basename(filename)
+        file_name = os.path.splitext(file_name)[0] + "_first.csv"
+        return os.path.join(dir_path, file_name)
     else:
         raise ValueError("Invalid Parser Type")

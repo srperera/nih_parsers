@@ -395,7 +395,7 @@ def get_first_timeframe_objects(
 
 
 ##################################################################
-def available_categories_first(ims_file_path: str, valid_surface: int):
+def available_categories_first(ims_file_path: str, valid_surface: int, save_path: str):
     # load the imaris file
     data = load_ims(ims_file_path)
 
@@ -434,15 +434,15 @@ def available_categories_first(ims_file_path: str, valid_surface: int):
     inverted_stats_names = invert_stats_dict(filtered_dict)
     inverted_stats_names = flatten(inverted_stats_names)
 
-    np.savetxt(
-        "stats_categories_first.txt", list(inverted_stats_names.keys()), fmt="%s"
-    )
+    # filepath
+    save_path = os.path.join(save_path, "stats_categories_first.txt")
+    np.savetxt(save_path, list(inverted_stats_names.keys()), fmt="%s")
 
-    print(f"Saved Stats Categories in directory: {os.getcwd()}")
+    # print(f"Saved Stats Categories in directory: {os.getcwd()}")
 
 
 ##################################################################
-def available_categories_track(ims_file_path: str, valid_surface: int):
+def available_categories_track(ims_file_path: str, valid_surface: int, save_path: str):
     # load the imaris file
     data = load_ims(ims_file_path)
 
@@ -480,15 +480,16 @@ def available_categories_track(ims_file_path: str, valid_surface: int):
     inverted_stats_names = flatten(inverted_stats_names)
 
     # filepath
-    np.savetxt(
-        "stats_categories_track.txt", list(inverted_stats_names.keys()), fmt="%s"
-    )
+    save_path = os.path.join(save_path, "stats_categories_track.txt")
+    np.savetxt(save_path, list(inverted_stats_names.keys()), fmt="%s")
 
-    print(f"Saved Stats Categories in directory: {os.getcwd()}")
+    # print(f"Saved Stats Categories in directory: {os.getcwd()}")
 
 
 ##################################################################
-def available_categories_surface(ims_file_path: str, valid_surface: int):
+def available_categories_surface(
+    ims_file_path: str, valid_surface: int, save_path: str
+):
     # load the imaris file
     data = load_ims(ims_file_path)
 
@@ -507,11 +508,11 @@ def available_categories_surface(ims_file_path: str, valid_surface: int):
     inverted_stats_names = invert_stats_dict(surface_stats_names)
     inverted_stats_names = flatten(inverted_stats_names)
 
-    np.savetxt(
-        "stats_categories_surface.txt", list(inverted_stats_names.keys()), fmt="%s"
-    )
+    # save path
+    save_path = os.path.join(save_path, "stats_categories_surface.txt")
+    np.savetxt(save_path, list(inverted_stats_names.keys()), fmt="%s")
 
-    print(f"Saved Stats Categories in directory: {os.getcwd()}")
+    # print(f"Saved Stats Categories in directory: {os.getcwd()}")
 
 
 ##################################################################

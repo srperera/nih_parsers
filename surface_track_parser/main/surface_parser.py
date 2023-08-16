@@ -3,33 +3,49 @@ import copy
 import ray
 
 
+########################################################################################
+def extract_data(ims_file_path, data, valid_surface, save_path):
+    print(f"\n[info] extracting data {ims_file_path} -- surface {valid_surface}")
+    try:
+        # get surface we want to parse
+        surface_name = utils.get_object_names(
+            full_data_file=data, search_for="Surface"
+        )[valid_surface]
+
+        # get all the statistics names
+        surface_stats_names = utils.get_statistics_names(
+            full_data_file=data, object_name=surface_name
+        )
+
+        # get the statistics values in the surface
+        surface_stats_values = utils.get_stats_values(
+            full_data_file=data, object_name=surface_name
+        )
+
+        # check for anomalies in the values
+        utils.check_anomalies(surface_stats_names, save_path)
+
+        out = {
+            "surface_stats_values": surface_stats_values,
+            "surface_stats_names": surface_stats_names,
+            "save_path": save_path,
+        }
+    except AttributeError:
+        print(f"skipping file {ims_file_path} -- surface {valid_surface} not found\n")
+        out = None
+    except IndexError:
+        print(f"skipping file {ims_file_path} -- surface {valid_surface} not found\n")
+        out = None
+
+    return out
+
+
+########################################################################################
 @ray.remote
-def extract_and_save(
-    ims_file_path: str, valid_surface: int, categories_list: list, save_path: str
-) -> None:
+def process_and_save(
+    ims_file_path, surface_stats_values, surface_stats_names, categories_list, save_path
+):
     print(f"[info] working on file {ims_file_path}")
-
-    # load the imaris file
-    data = utils.load_ims(ims_file_path)
-
-    # try:
-    # get surface we want to parse
-    surface_name = utils.get_object_names(full_data_file=data, search_for="Surface")[
-        valid_surface
-    ]
-
-    # get all the statistics names
-    surface_stats_names = utils.get_statistics_names(
-        full_data_file=data, object_name=surface_name
-    )
-
-    # get the statistics values in the surface
-    surface_stats_values = utils.get_stats_values(
-        full_data_file=data, object_name=surface_name
-    )
-
-    # check for anomalies in the values
-    utils.check_anomalies(surface_stats_names, save_path)
 
     # extract data from original h5py table format into a dict of dicts
     # format = {ID_Object: {ID_StatisticsType: Value}}
@@ -81,6 +97,3 @@ def extract_and_save(
     dataframe.to_csv(save_path, index=None)
 
     print("[info] finished! \n")
-
-    # except AttributeError:
-    #     print(f"skipping file {ims_file_path} -- no surface found")

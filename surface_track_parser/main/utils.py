@@ -220,9 +220,9 @@ def create_del_list(inverted_stats_names: dict, valid_categories: List):
         try:
             user_request_numeric.append(inverted_stats_names[valid_category])
         except KeyError:
-            print(
-                f"--- [warning] -- user requested category {valid_category} is NOT in current file"
-            )
+            # print(
+            #     f"--- [warning] -- user requested category {valid_category} is NOT in current file"
+            # )
             pass
 
     # take a local copy of the stats dict
@@ -537,18 +537,18 @@ def get_category_function(parser_type: str):
 #         raise ValueError("Invalid Parser Type")
 
 
-def get_save_filepath(parser_type: str, dir_path: str, filename: str):
+def get_save_filepath(parser_type: str, dir_path: str, filename: str, surface: int):
     if parser_type == "track":
         file_name = os.path.basename(filename)
-        file_name = os.path.splitext(file_name)[0] + "_track.csv"
+        file_name = os.path.splitext(file_name)[0] + f"_track_{surface}.csv"
         return os.path.join(dir_path, file_name)
     elif parser_type == "surface":
         file_name = os.path.basename(filename)
-        file_name = os.path.splitext(file_name)[0] + "_surface.csv"
+        file_name = os.path.splitext(file_name)[0] + f"_surface_{surface}.csv"
         return os.path.join(dir_path, file_name)
     elif parser_type == "first":
         file_name = os.path.basename(filename)
-        file_name = os.path.splitext(file_name)[0] + "_first.csv"
+        file_name = os.path.splitext(file_name)[0] + f"_first_{surface}.csv"
         return os.path.join(dir_path, file_name)
     else:
         raise ValueError("Invalid Parser Type")

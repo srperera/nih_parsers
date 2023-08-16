@@ -1,16 +1,14 @@
 # path to the data folder
 # example --> data_dir: 'data_dir/single_file/'
-data_dir: ['../../data/surface_track_parser_dev_data/']
+# multiple directories possible just seperate each with a comma.
+data_dir: ['/Users/shehan/Desktop/nih_parsers-surface_track_parser/surface_track_parser/']
 
-save_dir: ['surface_track_parser/temp']
+# each data directory MUST have a matching save directory
+save_dir: ['surface_track_parser/first']
 
 # valid surface (ie: surface you want to extract data from)
 # NOT ZERO INDEX, VALUES START AT 1
-valid_surface: 1
-valid_surface_dict: {
-  1: "Blue",
-  2: "Green",
-}
+valid_surface: [1, 2, 3, 4, 5, 6, 8, 10]
 
 # type of data extraction: surface, track or first
 parser_type: 'first'

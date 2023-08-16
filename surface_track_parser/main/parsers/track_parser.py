@@ -1,4 +1,4 @@
-import utils
+from utils import utils
 import copy
 import ray
 
@@ -6,8 +6,8 @@ import ray
 ########################################################################################
 def extract_data(ims_file_path, data, valid_surface, save_path):
     print(f"\n[info] extracting data {ims_file_path} -- surface {valid_surface}")
+
     try:
-        # get surface we want to parse
         surface_name = utils.get_object_names(
             full_data_file=data, search_for="Surface"
         )[valid_surface]
@@ -20,6 +20,19 @@ def extract_data(ims_file_path, data, valid_surface, save_path):
         # get the statistics values in the surface
         surface_stats_values = utils.get_stats_values(
             full_data_file=data, object_name=surface_name
+        )
+
+        # get only the traack ids
+        track_ids = utils.get_track_ids(full_data_file=data, object_name=surface_name)
+
+        # filter full stats values based on track ids
+        filtered_stats_df = utils.filter_by_object_id(
+            stats_values=surface_stats_values, object_ids=track_ids
+        )
+
+        # filter stats dict
+        filtered_dict = utils.filter_stats_dict(
+            stats_dict=surface_stats_names, filtered_df=filtered_stats_df
         )
 
         # check for anomalies in the values

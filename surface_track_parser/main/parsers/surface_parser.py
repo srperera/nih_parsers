@@ -1,4 +1,4 @@
-import utils
+from utils import utils
 import copy
 import ray
 
@@ -6,8 +6,8 @@ import ray
 ########################################################################################
 def extract_data(ims_file_path, data, valid_surface, save_path):
     print(f"\n[info] extracting data {ims_file_path} -- surface {valid_surface}")
-
     try:
+        # get surface we want to parse
         surface_name = utils.get_object_names(
             full_data_file=data, search_for="Surface"
         )[valid_surface]
@@ -22,19 +22,6 @@ def extract_data(ims_file_path, data, valid_surface, save_path):
             full_data_file=data, object_name=surface_name
         )
 
-        # get only the traack ids
-        track_ids = utils.get_track_ids(full_data_file=data, object_name=surface_name)
-
-        # filter full stats values based on track ids
-        filtered_stats_df = utils.filter_by_object_id(
-            stats_values=surface_stats_values, object_ids=track_ids
-        )
-
-        # filter stats dict
-        filtered_dict = utils.filter_stats_dict(
-            stats_dict=surface_stats_names, filtered_df=filtered_stats_df
-        )
-
         # check for anomalies in the values
         utils.check_anomalies(surface_stats_names, save_path)
 
@@ -43,9 +30,9 @@ def extract_data(ims_file_path, data, valid_surface, save_path):
             "surface_stats_names": surface_stats_names,
             "save_path": save_path,
         }
-    except AttributeError:
-        print(f"skipping file {ims_file_path} -- surface {valid_surface} not found\n")
-        out = None
+    # except AttributeError:
+    #     print(f"skipping file {ims_file_path} -- surface {valid_surface} not found\n")
+    #     out = None
     except IndexError:
         print(f"skipping file {ims_file_path} -- surface {valid_surface} not found\n")
         out = None

@@ -1,6 +1,8 @@
 import h5py
 import numpy as np
+
 import pandas as pd
+import polars as pl
 import re
 from tqdm import tqdm
 import re
@@ -9,6 +11,8 @@ import os
 
 from collections.abc import MutableMapping
 from typing import Dict, List
+
+from .exceptions import *
 
 
 ##############################################################
@@ -63,13 +67,15 @@ def get_object_names(full_data_file: h5py.File, search_for: str) -> List:
     Returns:
         list: a list of all the object names that match search_for parameter
     """
-
-    values = full_data_file.get("Scene8").get("Content").keys()
-    storage = list()
-    for item in values:
-        if len(re.findall(search_for, item)):
-            storage.append(item)
-    return storage
+    try:
+        values = full_data_file.get("Scene8").get("Content").keys()
+        storage = list()
+        for item in values:
+            if len(re.findall(search_for, item)):
+                storage.append(item)
+        return storage
+    except AttributeError:
+        raise NoSurfaceException
 
 
 ##############################################################
@@ -87,7 +93,7 @@ def get_statistics_names(full_data_file: h5py.File, object_name: str) -> Dict:
     """
 
     # get object specific data
-    obj_specific_data = full_data_file["Scene8"]["Content"][object_name]
+    obj_specific_data = full_data_file.get("Scene8").get("Content").get(object_name)
 
     # rearrange data
     statistics_name = np.asarray(obj_specific_data["StatisticsType"])
@@ -265,8 +271,6 @@ def generate_csv(
     # map the integer values in the data frame to corresponding names
     new_column_names = {key: stats_names[key] for key in dataframe.columns}
 
-    # print(new_column_names)
-
     # rename columns
     dataframe = dataframe.rename(new_column_names, axis=1)
 
@@ -324,10 +328,15 @@ def get_track_ids(full_data_file: h5py.File, object_name: str) -> pd.Series:
         full_data_file (h5py.File): _description_
         object_name (str): _description_
     """
-    track_ids = pd.DataFrame(
-        np.asarray(full_data_file.get("Scene8").get("Content")[object_name]["Track0"])
-    )
-    return track_ids["ID"]
+    try:
+        track_ids = pd.DataFrame(
+            np.asarray(
+                full_data_file.get("Scene8").get("Content")[object_name]["Track0"]
+            )
+        )
+        return track_ids["ID"]
+    except KeyError:
+        raise NoTrackException
 
 
 ##################################################################

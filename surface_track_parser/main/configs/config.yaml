@@ -4,7 +4,7 @@
 data_dir: ['/home/shehan/Documents/nih_projects/parsers/data/surface_track_parser_dev_data']
 
 # each data directory MUST have a matching save directory
-save_dir: ['surface_track_parser/first']
+save_dir: ['surface_track_parser/surface_3/first']
 
 # valid surface (ie: surface you want to extract data from)
 # NOT ZERO INDEX, VALUES START AT 1

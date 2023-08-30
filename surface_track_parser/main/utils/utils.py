@@ -387,17 +387,20 @@ def get_first_timeframe_objects(
         full_data_file (h5py.File): _description_
         object_name (str): _description_
     """
-    # reverse stats dict
-    inv_stats_dict = invert_stats_dict(stats_dict)
+    try:
+        # reverse stats dict
+        inv_stats_dict = invert_stats_dict(stats_dict)
 
-    # get stats value for Time Index
-    time_index = inv_stats_dict["Time Index"]
+        # get stats value for Time Index
+        time_index = inv_stats_dict["Time Index"]
 
-    # filter stats value based on time index == 1
-    temp = stats_values[stats_values["ID_StatisticsType"] == time_index]
-    first_objects = temp[temp["Value"] == 1]["ID_Object"]
+        # filter stats value based on time index == 1
+        temp = stats_values[stats_values["ID_StatisticsType"] == time_index]
+        first_objects = temp[temp["Value"] == 1]["ID_Object"]
 
-    return first_objects
+        return first_objects
+    except KeyError:
+        raise NoFirstObjectException
 
 
 ##################################################################

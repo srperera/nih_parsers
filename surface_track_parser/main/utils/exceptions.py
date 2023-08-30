@@ -12,3 +12,11 @@ class NoSurfaceException(Exception):
     """
 
     pass
+
+
+class NoFirstObjectException(Exception):
+    """
+    raised when no Surfaces are Found
+    """
+
+    pass

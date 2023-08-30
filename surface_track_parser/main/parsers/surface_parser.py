@@ -1,11 +1,14 @@
-from utils import utils
+from utils import utils, exceptions
 import copy
 import ray
+import os
 
 
 ########################################################################################
 def extract_data(ims_file_path, data, valid_surface, save_path):
-    print(f"\n[info] extracting data {ims_file_path} -- surface {valid_surface}")
+    print(
+        f"\t[info] extracting data: {os.path.basename(ims_file_path)} -- surface: {valid_surface}"
+    )
     try:
         # get surface we want to parse
         surface_name = utils.get_object_names(
@@ -25,75 +28,113 @@ def extract_data(ims_file_path, data, valid_surface, save_path):
         # check for anomalies in the values
         utils.check_anomalies(surface_stats_names, save_path)
 
-        out = {
+        extracted_data = {
+            "ims_file_path": ims_file_path,
             "surface_stats_values": surface_stats_values,
             "surface_stats_names": surface_stats_names,
             "save_path": save_path,
+            "valid_surface": valid_surface,
         }
-    # except AttributeError:
-    #     print(f"skipping file {ims_file_path} -- surface {valid_surface} not found\n")
-    #     out = None
+    except exceptions.NoSurfaceException:
+        print("\t\t[info] -- raised no surface exception")
+        print(
+            f"\t\t[info] -- skipping file {os.path.basename(ims_file_path)} -- no surfaces found"
+        )
+        extracted_data = None
     except IndexError:
-        print(f"skipping file {ims_file_path} -- surface {valid_surface} not found\n")
-        out = None
-
-    return out
+        print("\t\t[info] -- raised index error")
+        print(
+            f"\t\t[info] -- skipping file {os.path.basename(ims_file_path)} -- surface {valid_surface} not found"
+        )
+        extracted_data = None
+    except exceptions.NoTrackException:
+        print("\t\t[info] -- raised no track exception")
+        print(
+            f"\t\t[info] -- skipping file {os.path.basename(ims_file_path)} -- tracks not found in surface: {valid_surface}"
+        )
+        extracted_data = None
+    return extracted_data
 
 
 ########################################################################################
+import gc
+
+
 @ray.remote
-def process_and_save(
-    ims_file_path, surface_stats_values, surface_stats_names, categories_list, save_path
-):
-    print(f"[info] working on file {ims_file_path}")
+def process_and_save(extracted_data):
+    try:
+        ims_file_path = extracted_data.get("ims_file_path")
+        extracted_stats = extracted_data.get("surface_stats_values")
+        surface_stats_names = extracted_data.get("surface_stats_names")
+        save_path = extracted_data.get("save_path")
+        categories_list = extracted_data.get("categories_list")
+        valid_surface = extracted_data.get("valid_surface")
 
-    # extract data from original h5py table format into a dict of dicts
-    # format = {ID_Object: {ID_StatisticsType: Value}}
-    extracted_stats = (
-        surface_stats_values.groupby("ID_Object")[["ID_StatisticsType", "Value"]]
-        .apply(lambda x: x.set_index("ID_StatisticsType").to_dict(orient="dict"))
-        .to_dict()
-    )
-    extracted_stats = {
-        k: v["Value"] for k, v in extracted_stats.items()
-    }  # clean up step for line above
+        print(
+            f"\t[info] working on file: {os.path.basename(ims_file_path)} -- surface {valid_surface}"
+        )
 
-    # invert dictionary + name modifications
-    # this step is a cosmetic step
-    # here key=name, value=num
-    inverted_stats_names = utils.invert_stats_dict(surface_stats_names)
-    inverted_stats_names = utils.flatten(inverted_stats_names)
+        # extract data from original h5py table format into a dict of dicts
+        # format = {ID_Object: {ID_StatisticsType: Value}}
+        extracted_stats = (
+            extracted_stats.groupby("ID_Object")[["ID_StatisticsType", "Value"]]
+            .apply(lambda x: x.set_index("ID_StatisticsType").to_dict(orient="dict"))
+            .to_dict()
+        )
 
-    # create a list of stats names (in integer form) we want to remove
-    del_list = utils.create_del_list(inverted_stats_names, categories_list)
+        extracted_stats = {
+            k: v["Value"] for k, v in extracted_stats.items()
+        }  # clean up step for line above
 
-    # reverse the stats names again such that key=num, value=name
-    final_stats_names = {v: k for k, v in inverted_stats_names.items()}
+        # invert dictionary + name modifications
+        # this step is a cosmetic step
+        # here key=name, value=num
+        inverted_stats_names = utils.invert_stats_dict(surface_stats_names)
+        inverted_stats_names = utils.flatten(inverted_stats_names)
 
-    # filter the user defined category list
-    # if the user requested a category that is NOT in the data, remove it
-    categories_list_updated = []
-    for category in categories_list:
-        if category not in final_stats_names.values():
-            pass
-        else:
-            categories_list_updated.append(category)
+        # create a list of stats names (in integer form) we want to remove
+        del_list = utils.create_del_list(inverted_stats_names, categories_list)
 
-    categories_list = categories_list_updated
-    categories_list.insert(0, "ID")
+        # reverse the stats names again such that key=num, value=name
+        final_stats_names = {v: k for k, v in inverted_stats_names.items()}
 
-    # generate csv
-    dataframe = utils.generate_csv(
-        data_dict=extracted_stats,
-        del_list=del_list,
-        stats_names=final_stats_names,
-        categories_list=categories_list,
-    )
+        # filter the user defined category list
+        # if the user requested a category that is NOT in the data, remove it
+        categories_list_updated = []
+        for category in categories_list:
+            if category not in final_stats_names.values():
+                pass
+            else:
+                categories_list_updated.append(category)
 
-    # Addition 04/24/2023 drop the first row with ID -1
-    dataframe = dataframe.iloc[1:]
+        categories_list = categories_list_updated
+        categories_list.insert(0, "ID")
 
-    # save the dataframe in the same location
-    dataframe.to_csv(save_path, index=None)
+        # generate csv
+        dataframe = utils.generate_csv(
+            data_dict=extracted_stats,
+            del_list=del_list,
+            stats_names=final_stats_names,
+            categories_list=categories_list,
+        )
 
-    print("[info] finished! \n")
+        # Addition 04/24/2023 drop the first row with ID -1
+        if int(dataframe.iloc[0]["ID"]) == -1:
+            dataframe = dataframe.iloc[1:]
+
+        # save the dataframe in the same location
+        dataframe.to_csv(save_path, index=None)
+
+        print(
+            f"\t[info] finished: {os.path.basename(ims_file_path)} -- surface {valid_surface} -- processed {len(dataframe)} items"
+        )
+
+        del dataframe
+        del extracted_data
+        del extracted_stats
+        gc.collect()
+
+    except Exception as e:
+        print(
+            f"\tERROR in FILE: {os.path.basename(ims_file_path)} - surface {valid_surface} raised Exception [{e}]"
+        )

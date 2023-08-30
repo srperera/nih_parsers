@@ -60,6 +60,7 @@ def extract_data(ims_file_path, data, valid_surface, save_path):
 import gc
 
 
+@ray.remote
 def process_and_save(extracted_data):
     try:
         ims_file_path = extracted_data.get("ims_file_path")
@@ -118,7 +119,8 @@ def process_and_save(extracted_data):
         )
 
         # Addition 04/24/2023 drop the first row with ID -1
-        dataframe = dataframe.iloc[1:]
+        if int(dataframe.iloc[0]["ID"]) == -1:
+            dataframe = dataframe.iloc[1:]
 
         # save the dataframe in the same location
         dataframe.to_csv(save_path, index=None)

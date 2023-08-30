@@ -2,9 +2,6 @@ import h5py
 import numpy as np
 
 import pandas as pd
-import polars as pl
-import re
-from tqdm import tqdm
 import re
 import yaml
 import os

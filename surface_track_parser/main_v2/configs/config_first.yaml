@@ -1,0 +1,19 @@
+# path to the data folder
+# example --> data_dir: 'data_dir/single_file/'
+# multiple directories possible just seperate each with a comma.
+data_dir: ['../../data/multi_surface_track_parser_dev_data']
+
+# each data directory MUST have a matching save directory
+save_dir: ['.']
+
+# valid surface (ie: surface you want to extract data from)
+# NOT ZERO INDEX, VALUES START AT 1
+valid_surface: [1, 2, 3, 4, 5]
+
+# type of data extraction: surface, track or first
+parser_type: 'first'
+
+# path to the statistics categories
+# example --> stats_category_path: 'stats_categories.txt'
+# ensure the right category txt file is provided based on parser type
+stats_category_path: 'txt_files/stats_categories_first.txt'

@@ -13,3 +13,7 @@
             * Change Config File
             * Run All Cells in general_parser.ipynb
         * The Script Will Autogenerate all available statistics and use those statistics to create the final csv file
+
+
+
+

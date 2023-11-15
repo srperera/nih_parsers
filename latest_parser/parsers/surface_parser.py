@@ -31,10 +31,16 @@ class SurfaceParserDistributed(Parser):
         Parser (ABCMeta): Parser Abstract Base Class
     """
 
-    def __init__(self, ims_file_path: str, surface_id: int = -1) -> None:
+    def __init__(
+        self,
+        ims_file_path: str,
+        surface_id: int = -1,
+        save_dir: str = None,
+    ) -> None:
         # TODO set up such that we can pass in a path of stats the user wants and we filter final csv accordingly
         self.ims_file_path = ims_file_path
         self.surface_id = surface_id
+        self.save_dir = save_dir
         self.ims = ImarisDataObject(self.ims_file_path)
         self._configure_instance(surface_id=surface_id)
 
@@ -141,7 +147,7 @@ class SurfaceParserDistributed(Parser):
         # a function to write csv information to disk
         # get save_dir/original_filename.csv
         ims_filename = os.path.basename(self.ims_file_path).split(".")[0]
-        ims_filename = f"{ims_filename}_surface_{surface_id}.csv"
+        ims_filename = f"{ims_filename}_surface_{(surface_id + 1)}.csv"
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
 
@@ -427,7 +433,7 @@ class SurfaceParserDistributed(Parser):
 
         return available_stats_names
 
-    def extract_and_save(self, surface_id: int, save_dir: str) -> None:
+    def extract_and_save(self, surface_id: int, save_dir: str = None) -> None:
         # this function is the funtion that gets called externally
         # we can have this function as a ray method to help with distributed execution
         # check 1
@@ -447,6 +453,7 @@ class SurfaceParserDistributed(Parser):
 
         # adjust surface_id based on init mode
         # save surface
+        save_dir = save_dir if save_dir else self.save_dir
         if self.surface_id == -1:
             self._save_csv(dataframe, save_dir, surface_id=surface_id)
         else:

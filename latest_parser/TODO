@@ -1,0 +1,13 @@
+
+High Level TODO Items
+1. Need to check all values with imaris software.
+2. Need to make sure all the safty checks/exeptions are handled.
+3. Figure out how to test the code base.
+4. Need to record the logic into a video. 
+
+
+Features That Need To Be Added
+1. We need to be able to drop columns specified by the user from final csv.
+    1a. if we can reformat to do this earlier in the process then the organize_stats step is faster.
+
+2. s

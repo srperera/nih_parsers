@@ -18,6 +18,12 @@ from imaris.imaris import ImarisDataObject
     * we have to use int surface_id = 0 in extract or inspect to access the corressponding data
     
 * above two steps are done to help improve memory allocation during parallel execution.
+
+* Surface Track ID Parser:
+    * Goal is to to assign the correct track id to each surface object id
+    * Similar to surface parser where we extract information for each surface id
+    * Here we will simply attach the track id value that belongs to the object id 
+    TODO: need to check if the given object has track information. 
 """
 
 
@@ -93,9 +99,16 @@ class SurfaceObjectTrackParserDistributed(Parser):
             for surface_id, surface_name in enumerate(self.surface_names)
         }
 
-        # get all the factor table info for every surface {surf_id: factor_df}
+        # get all the object id information every surface {surf_id: factor_df}
         self.object_ids = {
             surface_id: self.ims.get_object_ids(surface_name)
+            for surface_id, surface_name in enumerate(self.surface_names)
+        }
+
+        # gets all the track id information for every surface
+        # if no tracks found this should throw a no track exception
+        self.track_ids = {
+            surface_id: self.ims.get_track_ids(surface_name)
             for surface_id, surface_name in enumerate(self.surface_names)
         }
 

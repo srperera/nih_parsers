@@ -2,7 +2,7 @@ import gc
 import ray
 from typing import List
 from imaris.imaris import ImarisDataObject
-from parsers.surface_parser import SurfaceParser
+from parsers.surface_parser import SurfaceParserDistributed
 
 
 #########################################################################################

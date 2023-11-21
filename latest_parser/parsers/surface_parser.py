@@ -122,10 +122,19 @@ class SurfaceParserDistributed(Parser):
             Dict: _description_
         """
         grouped_stats = (
-            stats_values.groupby("ID_Object")[["ID_StatisticsType", "Value"]]
+            stats_values.groupby("ID_Object", sort=False)[
+                ["ID_StatisticsType", "Value"]
+            ]
             .apply(lambda x: x.set_index("ID_StatisticsType").to_dict(orient="dict"))
             .to_dict()
         )
+        # grouped_stats = stats_values.groupby("ID_Object")[
+        #     ["ID_StatisticsType", "Value"]
+        # ]
+        # grouped_stats = grouped_stats.apply(
+        #     lambda x: x.set_index("ID_StatisticsType").to_dict(orient="dict")
+        # ).to_dict()
+
         grouped_stats = {k: v["Value"] for k, v in grouped_stats.items()}
         return grouped_stats
 

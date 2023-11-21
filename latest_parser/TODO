@@ -3,11 +3,14 @@ High Level TODO Items
 1. Need to check all values with imaris software.
 2. Need to make sure all the safty checks/exeptions are handled.
 3. Figure out how to test the code base.
-4. Need to record the logic into a video. 
+4. Need to record the logic into a video.
+5. Clean up and test all but the process_surface.py files in scripts folder
+6. Need to add conv env file and pip requirements list
 
 
 Features That Need To Be Added
 1. We need to be able to drop columns specified by the user from final csv.
     1a. if we can reformat to do this earlier in the process then the organize_stats step is faster.
 
-2. s
+2. Instead of saving as surface 1, 2 etc we should locate the exact surface name from factors list
+    and use that in the file name to aviod any issues.

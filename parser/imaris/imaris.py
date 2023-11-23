@@ -186,6 +186,16 @@ class ImarisDataObject:
         return factor
 
     def contains_surfaces(self, object_name: str) -> bool:
+        """
+        Given a object name ie: MegaSurfaces0 returns if
+        surface object data is available.
+
+        Args:
+            object_name (str): _description_
+
+        Returns:
+            bool: _description_
+        """
         surface_data = (
             self.data.get("Scene8").get("Content").get(object_name).get("SurfaceModel")
         )
@@ -197,6 +207,16 @@ class ImarisDataObject:
             return False
 
     def contains_tracks(self, object_name: str) -> bool:
+        """
+        Given a object name ie: MegaSurfaces0 returns if
+        track data is available.
+
+        Args:
+            object_name (str): _description_
+
+        Returns:
+            bool: _description_
+        """
         track_data = (
             self.data.get("Scene8").get("Content").get(object_name).get("Track0")
         )

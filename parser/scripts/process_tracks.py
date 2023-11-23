@@ -5,7 +5,7 @@ import numpy as np
 from typing import List, Tuple
 from utils.utils import get_valid_track_surfaces, run_ray_actors
 from parsers.track_parser import TrackParserDistributed
-from imaris.exceptions import NoTrackException
+from imaris.exceptions import NoTrackException, NoSurfaceException
 
 """
 Notes:
@@ -70,7 +70,14 @@ def run_track_parser_parallel(
                     os.makedirs(save_path)
 
                 # get num of valid surfaces
-                valid_surface_ids = get_valid_track_surfaces(data_path=file_path)
+                try:
+                    valid_surface_ids = get_valid_track_surfaces(data_path=file_path)
+                except NoTrackException:
+                    print(f"[info] -- file {filename} contains no tracks .. skipping")
+                    break
+                except NoSurfaceException:
+                    print(f"[info] -- file {filename} contains no surfaces .. skipping")
+                    break
 
                 # if surface_ids are provided, filter valid_surface_ids
                 if surface_ids:
@@ -88,20 +95,15 @@ def run_track_parser_parallel(
 
                     # create actors for each surface in current imaris file
                     for idx in valid_surface_ids:
-                        try:
-                            actor = TrackParserDistributed.remote(
-                                file_path,
-                                surface_id=idx,
-                                save_dir=save_path,
-                            )
-                        except NoTrackException:
-                            print(
-                                f"[info] -- no surface found in {filename}..skipping file"
-                            )
+                        actor = TrackParserDistributed.remote(
+                            file_path,
+                            surface_id=idx,
+                            save_dir=save_path,
+                        )
                         actors.append(actor)
 
     # generate results
-    print(f"[info] -- found {len(actors)} actors")
+    print(f"[info] -- found {len(actors)} surfaces")
     print(f"[info] -- extracting data ... ")
 
     run_ray_actors(actors, cpu_cores)

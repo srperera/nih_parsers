@@ -9,13 +9,6 @@ from imaris.exceptions import NoSurfaceException, NoSurfaceObjectsException
 
 """
 Notes:
-    available functions:
-        * run_surface_parser_parallel
-        * run_surface_parser_parallel_index
-
-    We should do all the necessary checks before creating actors
-        *ie: check for valid surfaces, tracks etc
-        * makes everything cleaner
 """
 
 
@@ -70,7 +63,11 @@ def run_surface_parser_parallel(
                     os.makedirs(save_path)
 
                 # get num of valid surfaces
-                valid_surface_ids = get_valid_surfaces(data_path=file_path)
+                try:
+                    valid_surface_ids = get_valid_surfaces(data_path=file_path)
+                except NoSurfaceException:
+                    print(f"[info] -- file {filename} contains no surfaces .. skipping")
+                    break
 
                 # if surface_ids are provided, filter valid_surface_ids
                 if surface_ids:
@@ -88,20 +85,11 @@ def run_surface_parser_parallel(
 
                     # create actors for each surface in current imaris file
                     for idx in valid_surface_ids:
-                        try:
-                            actor = SurfaceParserDistributed.remote(
-                                file_path,
-                                surface_id=idx,
-                                save_dir=save_path,
-                            )
-                        except NoSurfaceException:
-                            print(
-                                f"[info] -- no surface found in {filename}..skipping file"
-                            )
-                        except NoSurfaceObjectsException:
-                            print(
-                                f"[info] -- surface {idx} in {filename} contains no objects .. skipping file"
-                            )
+                        actor = SurfaceParserDistributed.remote(
+                            file_path,
+                            surface_id=idx,
+                            save_dir=save_path,
+                        )
                         actors.append(actor)
 
     # generate results

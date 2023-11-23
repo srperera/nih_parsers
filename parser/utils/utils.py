@@ -4,6 +4,7 @@ import numpy as np
 from typing import List
 from imaris.imaris import ImarisDataObject
 from parsers.surface_parser import SurfaceParserDistributed
+from imaris.exceptions import *
 
 
 #########################################################################################
@@ -56,7 +57,8 @@ def contains_sufaces(data_path: str, surface_id: int = 0) -> bool:
 
 #########################################################################################
 def get_surface_stats(data_path: str, surface_id: int = -1) -> List[str]:
-    """_summary_
+    """
+    INCOMPLETE
 
     Args:
         data_path (str): _description_
@@ -104,7 +106,6 @@ def get_valid_surfaces(data_path: str) -> List[int]:
         valid_surface = ims_obj.contains_surfaces(surface)
         if valid_surface:
             valid_surfaces.append(idx)
-
     return valid_surfaces
 
 

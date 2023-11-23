@@ -71,7 +71,14 @@ def run_surface_timestep_parser_parallel(
                     os.makedirs(save_path)
 
                 # get num of valid surfaces
-                valid_surface_ids = get_valid_track_surfaces(data_path=file_path)
+                try:
+                    valid_surface_ids = get_valid_track_surfaces(data_path=file_path)
+                except NoTrackException:
+                    print(f"[info] -- file {filename} contains no tracks .. skipping")
+                    break
+                except NoSurfaceException:
+                    print(f"[info] -- file {filename} contains no surfaces .. skipping")
+                    break
 
                 # if surface_ids are provided, filter valid_surface_ids
                 if surface_ids:

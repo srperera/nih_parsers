@@ -80,12 +80,10 @@ def run_surface_parser_parallel(
 
                 if len(valid_surface_ids) == 0:
                     print(f"[info] -- no valid surfaces in {filename} .. skipping file")
-
                 else:
                     print(
                         f"[info] -- creating {len(valid_surface_ids)} actors for {filename}"
                     )
-
                     # create actors for each surface in current imaris file
                     for idx in valid_surface_ids:
                         actor = SurfaceParserDistributed.remote(

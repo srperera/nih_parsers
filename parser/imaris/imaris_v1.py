@@ -2,20 +2,21 @@
 Notes:
     * Tested with Surfaces and Tracks
 """
-import re
-import os
+
 import h5py
 import numpy as np
 import pandas as pd
+import re
+import yaml
+import os
+from typing import Dict, List
 from .exceptions import *
-from typing import Dict, List, Union
 
 
 #########################################################################################
 class ImarisDataObject:
     def __init__(self, ims_file_path: str) -> None:
         self.data = self.load_ims(ims_file_path)
-        self.filename = os.path.basename(ims_file_path)
 
     def load_ims(self, ims_file_path: str) -> h5py.File:
         """
@@ -53,8 +54,7 @@ class ImarisDataObject:
                     storage.append(item)
             return storage
         except AttributeError:
-            if object_name == "Surface":
-                raise NoSurfaceException
+            raise NoSurfaceException
 
     def get_stats_names(self, object_name: str) -> pd.DataFrame:
         """
@@ -103,7 +103,7 @@ class ImarisDataObject:
         obj_specific_stats = np.asarray(obj_specific_stats)
         return pd.DataFrame(obj_specific_stats)
 
-    def get_track_ids(self, object_name: str) -> Union[pd.Series, None]:
+    def get_track_ids(self, object_name: str) -> pd.Series:
         """
         Gets all the track ids for a given surface
 
@@ -114,18 +114,17 @@ class ImarisDataObject:
         Returns:
             pd.Series: Track ids for given surface
         """
-        track_ids = pd.DataFrame(
-            np.asarray(
-                self.data.get("Scene8").get("Content").get(object_name).get("Track0")
+        try:
+            track_ids = pd.DataFrame(
+                np.asarray(
+                    self.data.get("Scene8").get("Content")[object_name]["Track0"]
+                )
             )
-        )
-        if track_ids is None:
-            # maybe log a warning?
-            return None
-        else:
             return track_ids["ID"]
+        except KeyError:
+            raise NoTrackException
 
-    def get_track_info(self, object_name: str) -> Union[pd.DataFrame, None]:
+    def get_track_info(self, object_name: str) -> pd.DataFrame:
         """
         Gets all the track infomation for a given surface
 
@@ -136,18 +135,17 @@ class ImarisDataObject:
         Returns:
             pd.Series: Track ids for given surface
         """
-        track_info = pd.DataFrame(
-            np.asarray(
-                self.data.get("Scene8").get("Content").get(object_name).get("Track0")
+        try:
+            track_info = pd.DataFrame(
+                np.asarray(
+                    self.data.get("Scene8").get("Content")[object_name]["Track0"]
+                )
             )
-        )
-        if track_info is None:
-            # maybe log a warning?
-            return None
-        else:
             return track_info
+        except KeyError:
+            raise NoTrackException
 
-    def get_object_ids(self, object_name: str) -> Union[pd.Series, None]:
+    def get_object_ids(self, object_name: str) -> pd.Series:
         """
         Gets all the object ids for a given surface
         Args:
@@ -156,18 +154,16 @@ class ImarisDataObject:
         Returns:
             pd.Series: Object ids for given surface
         """
-        object_ids = pd.DataFrame(
-            np.asarray(
-                self.data.get("Scene8")
-                .get("Content")
-                .get(object_name)
-                .get("SurfaceModel")
+        try:
+            object_ids = pd.DataFrame(
+                np.asarray(
+                    self.data.get("Scene8").get("Content")[object_name]["SurfaceModel"]
+                )
             )
-        )
-        if object_ids is None:
-            return None
-        else:
+
             return object_ids["ID"]
+        except KeyError:
+            raise ValueError("No Surface Objects")
 
     def get_object_factor(self, surface_name: str) -> pd.DataFrame:
         """Gets all the real surface names for given surface name
@@ -206,7 +202,7 @@ class ImarisDataObject:
         )
 
         # checks to ensure surface data has objects within it
-        if (surface_data is not None) and (surface_data.shape[0] > 0):
+        if surface_data and (surface_data.shape[0] > 0):
             return True
         else:
             return False
@@ -225,34 +221,23 @@ class ImarisDataObject:
         track_data = (
             self.data.get("Scene8").get("Content").get(object_name).get("Track0")
         )
+        return True if track_data else False
 
-        # checks to ensure surface data has objects within it
-        if (track_data is not None) and (track_data.shape[0] > 0):
-            return True
-        else:
-            return False
-
-    def get_track_object_info(self, object_name: str) -> Union[pd.Series, None]:
+    def get_object_info(self, object_name: str) -> pd.Series:
         """
-        Gets all the object ids associated with each track.
-        This data can be used to find what objects belong to
-        which track.
-
+        Gets all the object data for a given surface
         Args:
             object_name (str): _description_
 
         Returns:
             pd.Series: Object ids for given surface
         """
-        object_data = pd.DataFrame(
-            np.asarray(
-                self.data.get("Scene8")
-                .get("Content")
-                .get(object_name)
-                .get("TrackObject0")
+        try:
+            object_data = pd.DataFrame(
+                np.asarray(
+                    self.data.get("Scene8").get("Content")[object_name]["TrackObject0"]
+                )
             )
-        )
-        if object_data is not None:
             return object_data
-        else:
-            return None
+        except KeyError:
+            raise NoTrackException

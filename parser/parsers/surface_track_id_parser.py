@@ -117,7 +117,7 @@ class SurfaceObjectTrackParserDistributed(Parser):
 
         # get all object information for every surface
         self.object_info = {
-            surface_id: self.ims.get_object_info(surface_name)
+            surface_id: self.ims.get_track_object_info(surface_name)
             for surface_id, surface_name in enumerate(self.surface_names)
         }
 
@@ -361,7 +361,8 @@ class SurfaceObjectTrackParserDistributed(Parser):
         raise NotImplementedError
 
     def _update_track_id_info(self, surface_name, dataframe) -> pd.DataFrame:
-        """Returns the track id an object belongs to
+        """
+        Returns the track id an object belongs to
 
         Args:
             object_id (int): _description_
@@ -369,8 +370,6 @@ class SurfaceObjectTrackParserDistributed(Parser):
         Returns:
             int: _description_
         """
-        # object_info = self.ims.get_object_info(surface_name)
-        # track_info = self.ims.get_track_info(surface_name)
 
         object_info = self.object_info.get(surface_name)
         track_info = self.track_info.get(surface_name)

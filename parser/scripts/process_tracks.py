@@ -101,6 +101,7 @@ def run_track_parser_parallel(
                             save_dir=save_path,
                         )
                         actors.append(actor)
+                print("\n")
 
     # generate results
     print(f"[info] -- found {len(actors)} surfaces")

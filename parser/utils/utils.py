@@ -106,6 +106,8 @@ def get_valid_surfaces(data_path: str) -> List[int]:
         valid_surface = ims_obj.contains_surfaces(surface)
         if valid_surface:
             valid_surfaces.append(idx)
+        print(f"[info] -- surface id: {idx} -- surface: {valid_surface}")
+
     return valid_surfaces
 
 
@@ -129,6 +131,10 @@ def get_valid_track_surfaces(data_path: str) -> List[int]:
         valid_track = ims_obj.contains_tracks(surface)
         if valid_surface and valid_track:
             valid_surfaces.append(idx)
+
+        print(
+            f"[info] -- surface id: {idx} -- surface: {valid_surface} -- tracks: {valid_track}"
+        )
 
     return valid_surfaces
 

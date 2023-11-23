@@ -1,8 +1,13 @@
 # List of directories that contains .ims files
-data_dir: ['/home/shehan/Documents/nih_projects/parsers/data/surface_track_parser_dev_data']
+data_dir: [
+  "/home/shehan/Documents/nih_projects/parsers/data/latest_data/04052023 SHIV aLN iLN 6-color",
+  "/home/shehan/Documents/nih_projects/parsers/data/latest_data/04102023 VLP ALN ILN 6c",
+  "/home/shehan/Documents/nih_projects/parsers/data/latest_data/06082023 SIV infected VLP 6-color",
+  "/home/shehan/Documents/nih_projects/parsers/data/latest_data/06162023 SIV infected VLP 6-color"
+]
 
 # File Path: Optional If You want to Run a single .ims File
-save_dir: ["results/new"]
+save_dir: ["results/v1", "results/v2", "results/v3", "results/v4"]
 
 # Surface of Interest NOT ZERO INDEX ie: START WITH 1
 # If ALL surfaces are needed use valid_surfaces = -1

@@ -63,6 +63,9 @@ def run_surface_parser_parallel(
                     os.makedirs(save_path)
 
                 # get num of valid surfaces
+                # this try/except section is kind of a safty check
+                # only working files ie: files with data to parse should have
+                # ..actors created.
                 try:
                     valid_surface_ids = get_valid_surfaces(data_path=file_path)
                 except NoSurfaceException:

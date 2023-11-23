@@ -8,7 +8,6 @@ from typing import Dict, List
 
 from .parser_base import Parser
 from imaris.imaris import ImarisDataObject
-from imaris.exceptions import *
 
 # Notes:
 """
@@ -470,10 +469,7 @@ class SurfaceParserDistributed(Parser):
             )
 
         # process surface
-        try:
-            dataframe = self._process(surface_id)
-        except NoSurfaceObjectsException:
-            return None
+        dataframe = self._process(surface_id)
 
         # adjust surface_id based on init mode
         # save surface

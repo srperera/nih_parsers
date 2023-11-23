@@ -28,7 +28,7 @@ from imaris.imaris import ImarisDataObject
 
 
 #############################################################################
-# @ray.remote
+@ray.remote
 class SurfaceObjectTrackParserDistributed(Parser):
     """
     Extracts Surface Level Information From Imaris File
@@ -177,7 +177,7 @@ class SurfaceObjectTrackParserDistributed(Parser):
         # a function to write csv information to disk
         # get save_dir/original_filename.csv
         ims_filename = os.path.basename(self.ims_file_path).split(".")[0]
-        ims_filename = f"{ims_filename}_surface_{(surface_id + 1)}.csv"
+        ims_filename = f"{ims_filename}_surface_wtrack_{(surface_id + 1)}.csv"
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
 

@@ -8,6 +8,7 @@ from typing import Dict, List
 
 from .parser_base import Parser
 from imaris.imaris import ImarisDataObject
+import time
 
 # Notes:
 """
@@ -460,6 +461,7 @@ class SurfaceParserDistributed(Parser):
     def extract_and_save(self, surface_id: int, save_dir: str = None) -> None:
         # this function is the funtion that gets called externally
         # we can have this function as a ray method to help with distributed execution
+
         # check 1
         if (self.surface_id != -1) and (surface_id != 0):
             raise ValueError(

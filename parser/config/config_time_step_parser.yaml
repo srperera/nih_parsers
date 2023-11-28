@@ -16,3 +16,6 @@ valid_surfaces: -1
 
 # specify number of cpu cores
 cpu_cores: 28
+
+# specify time index
+time_index: 0

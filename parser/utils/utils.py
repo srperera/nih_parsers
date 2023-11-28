@@ -164,3 +164,16 @@ def run_ray_actors(actors: List, cpu_cores: int):
 
 
 #########################################################################################
+def run_ray_actors_2(actors: List, cpu_cores: int):
+    # generate results
+    # split if too many actors vs cores else run all
+    if cpu_cores and cpu_cores < len(actors):
+        num_actors = len(actors)
+        num_splits = np.round(num_actors / cpu_cores)
+        splits = np.array_split(np.asarray(actors, dtype=object), num_splits)
+        for split in splits:
+            for actor in split:
+                actor.extract_and_save(surface_id=0)
+    else:
+        for actor in split:
+            actor.extract_and_save(surface_id=0)

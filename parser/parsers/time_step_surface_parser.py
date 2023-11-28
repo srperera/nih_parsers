@@ -157,6 +157,9 @@ class TimeStepSurfaceParserDistributed(Parser):
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
 
+        # store ims_filename
+        self.ims_filename = ims_filename
+
     def _process(self, surface_id: int) -> None:
         """
         Runs a single end to end parser pipeline on a single surface
@@ -177,7 +180,7 @@ class TimeStepSurfaceParserDistributed(Parser):
         surface_name = self.surface_names[surface_id]
         stat_names = self.stats_names.get(surface_id)
         stat_values = self.stats_values.get(surface_id)
-        track_id = self.object_ids.get(surface_id)
+        object_id = self.object_ids.get(surface_id)
         factor = self.factors.get(surface_id)
 
         # update channel and surface names
@@ -189,12 +192,8 @@ class TimeStepSurfaceParserDistributed(Parser):
         time_index_id = time_index_id.iloc[0].item()
         stat_values = self._filter_stats(
             stats_values=stat_values,
-            filter_col_names=["ID_Object", "ID_StatisticsType", "Value"],
-            filter_values=[
-                track_id,
-                pd.Series([time_index_id]),
-                pd.Series([self.time_step]),
-            ],
+            filter_col_names=["ID_Object"],
+            filter_values=[object_id],
         )
 
         # organize stats value (most compute used here)
@@ -214,6 +213,8 @@ class TimeStepSurfaceParserDistributed(Parser):
         """
         Filters the stats values dataframe. It keeps information
         from col_names and filter_values that is passed in as arguments.
+        For time step parser, we need to return all the stats for objects
+        in a surface that belong to a particular time index.
 
         Args:
             stats_values (pd.DataFrame): _description_
@@ -223,25 +224,16 @@ class TimeStepSurfaceParserDistributed(Parser):
         Returns:
             pd.DataFrame: _description_
         """
-        # for first surface parser we apply 3 filters
-        # object, statistisc type, and value filters
-        # to get the object ids that belong to the first time setp
-        stats_values_copy = deepcopy(stats_values)
+        # first filter stats values by object id
         for col_names, values in zip(filter_col_names, filter_values):
-            stats_values_copy = stats_values_copy[
-                stats_values_copy[col_names].isin(values=values)
-            ]
+            stats_values = stats_values[stats_values[col_names].isin(values=values)]
 
-        # filter the original stats values to only contain the
-        # information from the first time step
-        # TODO: maybe doing this with a deepcopy is a good idea
-        # That way we can chain multiple filters get the final object ids
-        # and return all the stats for those object ids
-        stats_values = stats_values[
-            stats_values["ID_Object"].isin(values=stats_values_copy["ID_Object"])
+        # filter by time index
+        stats_values_at_time_idx = stats_values[
+            stats_values["ID_Time"] == self.time_step
         ]
 
-        return stats_values
+        return stats_values_at_time_idx
 
     def _update_channel_info(
         self,
@@ -499,6 +491,8 @@ class TimeStepSurfaceParserDistributed(Parser):
             self._save_csv(dataframe, save_dir, surface_id=surface_id)
         else:
             self._save_csv(dataframe, save_dir, surface_id=self.surface_id)
+
+        print(f"[info] -- finished: {self.ims_filename}")
 
 
 #############################################################################

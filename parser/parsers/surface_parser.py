@@ -39,12 +39,12 @@ class SurfaceParserDistributed(Parser):
     ) -> None:
         """
         Args:
-            ims_file_path (str): path to .ims file
-            surface_id (int, optional): specific surface id to extract info from. Defaults to -1.
+            * ims_file_path (str): path to .ims file
+            * surface_id (int, optional): specific surface id to extract info from. Defaults to -1.
                 If none is provided it will default to -1 where we extract and save to memory info
                 from all surfaces. If running in parallel its better to specify the surface
                 so we only extract and store limited amount of information.
-            save_dir (str, optional): directory to save csv to. Defaults to None.
+            * save_dir (str, optional): directory to save csv to. Defaults to None.
         """
         # TODO set up such that we can pass in a path of stats the user wants and we filter final csv accordingly
         self.ims_file_path = ims_file_path
@@ -58,7 +58,7 @@ class SurfaceParserDistributed(Parser):
 
     def _configure_instance(self, surface_id: int) -> None:
         """
-        Extracts relevant information from ims object and
+        * Extracts relevant information from ims object and
         instantiates it as instance variables for fast recall.
 
         Args:
@@ -111,11 +111,12 @@ class SurfaceParserDistributed(Parser):
         }
 
     def _organize_stats(self, stats_values: pd.DataFrame) -> Dict:
-        """Organized the data such that it looks like
+        """
+        * Organized the data such that it looks like
         {ID_Object: {Stats Name: Value}}
 
         Args:
-            surface_stats_values (pd.DataFrame): a single dataframe
+            * surface_stats_values (pd.DataFrame): a single dataframe
             that contains the statistics for a single surface
 
         Returns:
@@ -167,6 +168,9 @@ class SurfaceParserDistributed(Parser):
         ims_filename = f"{ims_filename}_surface_{(surface_id + 1)}.csv"
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
+
+        # store ims_filename
+        self.ims_filename = ims_filename
 
     def _process(self, surface_id: int) -> None:
         """
@@ -478,6 +482,8 @@ class SurfaceParserDistributed(Parser):
             self._save_csv(dataframe, save_dir, surface_id=surface_id)
         else:
             self._save_csv(dataframe, save_dir, surface_id=self.surface_id)
+
+        print(f"[info] -- finished: {self.ims_filename}")
 
 
 #############################################################################

@@ -124,7 +124,7 @@ class TrackParserDistributed(Parser):
 
         # replaces id columns with respective stat name and add idx
         dataframe = dataframe.rename(column_names_dict, axis=1)
-        dataframe["Object_ID"] = dataframe.index
+        dataframe["Track_ID"] = dataframe.index
         return dataframe
 
     def _save_csv(
@@ -139,6 +139,9 @@ class TrackParserDistributed(Parser):
         ims_filename = f"{ims_filename}_track_surface_{(surface_id + 1)}.csv"
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
+
+        # store ims_filename
+        self.ims_filename = ims_filename
 
     def _process(self, surface_id: int) -> None:
         """
@@ -434,6 +437,8 @@ class TrackParserDistributed(Parser):
             self._save_csv(dataframe, save_dir, surface_id=surface_id)
         else:
             self._save_csv(dataframe, save_dir, surface_id=self.surface_id)
+
+        print(f"[info] -- finished: {self.ims_filename}")
 
 
 #######################################################################################

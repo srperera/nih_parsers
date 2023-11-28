@@ -52,6 +52,8 @@ def run_track_parser_parallel(
     data_paths = list(zip(data_dirs, save_dirs))
 
     for data_path, save_dir in data_paths:
+        actors = []
+
         # get all imaris files from directory
         imaris_files = glob.glob(os.path.join(os.path.abspath(data_path), "*.ims"))
 
@@ -72,9 +74,6 @@ def run_track_parser_parallel(
                 # get num of valid surfaces
                 try:
                     valid_surface_ids = get_valid_track_surfaces(data_path=file_path)
-                except NoTrackException:
-                    print(f"[info] -- file {filename} contains no tracks .. skipping")
-                    break
                 except NoSurfaceException:
                     print(f"[info] -- file {filename} contains no surfaces .. skipping")
                     break
@@ -103,13 +102,13 @@ def run_track_parser_parallel(
                         actors.append(actor)
                 print("\n")
 
-    # generate results
-    print(f"[info] -- found {len(actors)} surfaces")
-    print(f"[info] -- extracting data ... ")
+        # generate results
+        print(f"[info] -- found {len(actors)} surfaces")
+        print(f"[info] -- extracting data ... ")
 
-    run_ray_actors(actors, cpu_cores)
+        run_ray_actors(actors, cpu_cores)
 
-    print(f"[info] -- complete.")
+        print(f"[info] -- complete.")
 
 
 #########################################################################################

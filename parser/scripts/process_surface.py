@@ -39,12 +39,12 @@ def run_surface_parser_parallel(
         assert isinstance(surface_ids, tuple), "surface_ids must be a tuple"
         assert len(surface_ids) > 0, "surface_ids must not be empty"
 
-    actors = []
-
     # zip data paths and save dirs
     data_paths = list(zip(data_dirs, save_dirs))
 
     for data_path, save_dir in data_paths:
+        actors = []
+
         # get all imaris files from directory
         imaris_files = glob.glob(os.path.join(os.path.abspath(data_path), "*.ims"))
 
@@ -92,14 +92,15 @@ def run_surface_parser_parallel(
                             save_dir=save_path,
                         )
                         actors.append(actor)
+                    print("\n")
 
-    # generate results
-    print(f"[info] -- found {len(actors)} actors")
-    print(f"[info] -- extracting data ... ")
+        # generate results
+        print(f"[info] -- found {len(actors)} actors")
+        print(f"[info] -- extracting data ... ")
 
-    run_ray_actors(actors, cpu_cores)
+        run_ray_actors(actors, cpu_cores)
 
-    print(f"[info] -- complete.")
+        print(f"[info] -- complete.")
 
 
 #########################################################################################

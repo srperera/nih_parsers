@@ -181,6 +181,9 @@ class SurfaceObjectTrackParserDistributed(Parser):
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
 
+        # store ims_filename
+        self.ims_filename = ims_filename
+
     def _process(self, surface_id: int) -> None:
         """
         Runs a single end to end parser pipeline on a single surface
@@ -540,6 +543,8 @@ class SurfaceObjectTrackParserDistributed(Parser):
             self._save_csv(dataframe, save_dir, surface_id=surface_id)
         else:
             self._save_csv(dataframe, save_dir, surface_id=self.surface_id)
+
+        print(f"[info] -- finished: {self.ims_filename}")
 
 
 #############################################################################

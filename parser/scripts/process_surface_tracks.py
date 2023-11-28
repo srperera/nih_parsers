@@ -46,12 +46,12 @@ def run_surface_track_parser_parallel(
         assert isinstance(surface_ids, tuple), "surface_ids must be a tuple"
         assert len(surface_ids) > 0, "surface_ids must not be empty"
 
-    actors = []
-
     # zip data paths and save dirs
     data_paths = list(zip(data_dirs, save_dirs))
 
     for data_path, save_dir in data_paths:
+        actors = []
+
         # get all imaris files from directory
         imaris_files = glob.glob(os.path.join(os.path.abspath(data_path), "*.ims"))
 
@@ -70,11 +70,11 @@ def run_surface_track_parser_parallel(
                     os.makedirs(save_path)
 
                 # get num of valid surfaces
+                # this try/except section is kind of a safty check
+                # only working files ie: files with data to parse should have
+                # ..actors created.
                 try:
                     valid_surface_ids = get_valid_track_surfaces(data_path=file_path)
-                except NoTrackException:
-                    print(f"[info] -- file {filename} contains no tracks .. skipping")
-                    break
                 except NoSurfaceException:
                     print(f"[info] -- file {filename} contains no surfaces .. skipping")
                     break
@@ -95,29 +95,21 @@ def run_surface_track_parser_parallel(
 
                     # create actors for each surface in current imaris file
                     for idx in valid_surface_ids:
-                        try:
-                            actor = SurfaceObjectTrackParserDistributed.remote(
-                                file_path,
-                                surface_id=idx,
-                                save_dir=save_path,
-                            )
-                        except NoSurfaceException:
-                            print(
-                                f"[info] -- no surface found in {filename}..skipping file"
-                            )
-                        except NoTrackException:
-                            print(
-                                f"[info] -- surface {idx} in {filename} contains no objects .. skipping file"
-                            )
+                        actor = SurfaceObjectTrackParserDistributed.remote(
+                            file_path,
+                            surface_id=idx,
+                            save_dir=save_path,
+                        )
                         actors.append(actor)
+                    print("\n")
 
-    # generate results
-    print(f"[info] -- found {len(actors)} actors")
-    print(f"[info] -- extracting data ... ")
+        # generate results
+        print(f"[info] -- found {len(actors)} actors")
+        print(f"[info] -- extracting data ... ")
 
-    run_ray_actors(actors, cpu_cores)
+        run_ray_actors(actors, cpu_cores)
 
-    print(f"[info] -- complete.")
+        print(f"[info] -- complete.")
 
 
 #########################################################################################

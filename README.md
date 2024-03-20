@@ -5,6 +5,8 @@
 * This script does not calculate any statistical information, it simply extracts existing information from each .ims file and formats in a manner that helps with downsteam stream analysis software such as FlowJo.
 
 #### Setup
+* Tested on: Windows 10, Ubuntu 20.04
+* Install Time: <10 minutes
 Create Enviroment:
 ```
 conda env create -f environment.yml

@@ -1,18 +1,20 @@
 # List of directories that contains .ims files
 data_dir: [
-  "/home/shehan/Documents/nih_projects/parsers/data/latest_data/04052023 SHIV aLN iLN 6-color",
-  "/home/shehan/Documents/nih_projects/parsers/data/latest_data/04102023 VLP ALN ILN 6c",
-  "/home/shehan/Documents/nih_projects/parsers/data/latest_data/06082023 SIV infected VLP 6-color",
-  "/home/shehan/Documents/nih_projects/parsers/data/latest_data/06162023 SIV infected VLP 6-color"
+  '\\niaid-fas1\Bioimaging\Users\rogandc\04052023 SHIV aLN iLN 6-color',
+  '\\niaid-fas1\Bioimaging\Users\rogandc\04102023 VLP ALN ILN 6c',
+  '\\niaid-fas1\Bioimaging\Users\rogandc\06082023 SIV infected VLP 6-color',
+  '\\niaid-fas1\Bioimaging\Users\rogandc\06162023 SIV infected VLP 6-color'
 ]
 
 # File Path: Optional If You want to Run a single .ims File
-save_dir: ["results/v1", "results/v2", "results/v3", "results/v4"]
-
+save_dir: ['\\niaid-fas1\Bioimaging\Users\rogandc\04052023 SHIV aLN iLN 6-color\flowjo1\surface', 
+            '\\niaid-fas1\Bioimaging\Users\rogandc\04102023 VLP ALN ILN 6c\flowjo1\surface', 
+            '\\niaid-fas1\Bioimaging\Users\rogandc\06082023 SIV infected VLP 6-color\flowjo1\surface',
+            '\\niaid-fas1\Bioimaging\Users\rogandc\06162023 SIV infected VLP 6-color\flowjo1\surface']
 # Surface of Interest NOT ZERO INDEX ie: START WITH 1
 # If ALL surfaces are needed use valid_surfaces = -1
 #valid_surfaces: [1,2,3,7,12]
 valid_surfaces: -1 
 
 # specify number of cpu cores
-cpu_cores: 28
+cpu_cores: 10

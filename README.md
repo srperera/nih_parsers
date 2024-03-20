@@ -4,6 +4,12 @@
 * This repo is designed to extract statistical information from raw Imaris file with (.ims) extension. 
 * This script does not calculate any statistical information, it simply extracts existing information from each .ims file and formats in a manner that helps with downsteam stream analysis software such as FlowJo.
 
+#### Setup
+Create Enviroment:
+```
+conda env create -f environment.yml
+```
+
 #### Usage Tips
 * We currently offer 4 types of data parsers
     * Surface Stats

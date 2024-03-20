@@ -108,7 +108,9 @@ class TrackParserDistributed(Parser):
         return grouped_stats
 
     def _generate_csv(
-        self, stats_values: Dict, stat_names: pd.DataFrame
+        self,
+        stats_values: Dict,
+        stat_names: pd.DataFrame,
     ) -> pd.DataFrame:
         """_summary_
 
@@ -125,6 +127,7 @@ class TrackParserDistributed(Parser):
         # replaces id columns with respective stat name and add idx
         dataframe = dataframe.rename(column_names_dict, axis=1)
         dataframe["Track_ID"] = dataframe.index
+        # dataframe["Object_ID"] = dataframe.index
         return dataframe
 
     def _save_csv(

@@ -2,6 +2,7 @@
 Notes:
     * Tested with Surfaces and Tracks
 """
+
 import re
 import os
 import h5py
@@ -147,27 +148,54 @@ class ImarisDataObject:
         else:
             return track_info
 
-    def get_object_ids(self, object_name: str) -> Union[pd.Series, None]:
+    def get_object_ids(self, object_name: str, **kwargs) -> Union[pd.Series, None]:
         """
-        Gets all the object ids for a given surface
+        Gets all the object ids for a given surface.
+
         Args:
             object_name (str): _description_
+            use_stats_data: can be passed in as a kwarg in situations
+            where the ims file does not contain a specific location
+            to extract object_id information. If use_stats_data is True
+            object_id information will be extracted from the StatisticsValue
+            dataframe.
 
         Returns:
             pd.Series: Object ids for given surface
         """
-        object_ids = pd.DataFrame(
-            np.asarray(
-                self.data.get("Scene8")
-                .get("Content")
-                .get(object_name)
-                .get("SurfaceModel")
+        if kwargs.get("use_stats_data"):
+            stats = pd.DataFrame(
+                np.asarray(
+                    self.data.get("Scene8")
+                    .get("Content")
+                    .get(object_name)
+                    .get("StatisticsValue")
+                )
             )
-        )
-        if object_ids is None:
-            return None
+            if stats is None:
+                return None
+            else:
+                object_ids = stats[stats["ID_Time"] != -1]["ID_Object"].unique()
+                object_ids = np.where(object_ids >= 0, object_ids, 0)
+                object_ids = object_ids[np.nonzero(object_ids)[0]]
+                object_ids = pd.Series(object_ids)
+                if len(object_ids) > 0:
+                    return object_ids
+                else:
+                    return None
         else:
-            return object_ids["ID"]
+            object_ids = pd.DataFrame(
+                np.asarray(
+                    self.data.get("Scene8")
+                    .get("Content")
+                    .get(object_name)
+                    .get("SurfaceModel")
+                )
+            )
+            if object_ids is None:
+                return None
+            else:
+                return object_ids["ID"]
 
     def get_object_factor(self, surface_name: str) -> pd.DataFrame:
         """Gets all the real surface names for given surface name
@@ -228,6 +256,30 @@ class ImarisDataObject:
 
         # checks to ensure surface data has objects within it
         if (track_data is not None) and (track_data.shape[0] > 0):
+            return True
+        else:
+            return False
+
+    def contains_filaments(self, object_name: str) -> bool:
+        """
+        Given a object name ie: Filaments0 returns True
+        if filaments data exists else False
+
+        Args:
+            object_name (str): _description_
+
+        Returns:
+            bool: _description_
+        """
+        filament_data = (
+            self.data.get("Scene8")
+            .get("Content")
+            .get(object_name)
+            .get("StatisticsValue")
+        )
+
+        # checks to ensure surface data has objects within it
+        if (filament_data is not None) and (filament_data.shape[0] > 0):
             return True
         else:
             return False

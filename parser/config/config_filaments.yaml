@@ -1,0 +1,15 @@
+# List of directories that contains .ims files
+data_dir: [
+  "/Users/shehan/Documents/nih_projects/nih_parsers/data/filaments",
+]
+
+# File Path: Optional If You want to Run a single .ims File
+save_dir: ["results/v1"]
+
+# Surface of Interest NOT ZERO INDEX ie: START WITH 1
+# If ALL surfaces are needed use valid_surfaces = -1
+#valid_surfaces: [1,2,3,7,12]
+valid_filaments: -1 
+
+# specify number of cpu cores
+cpu_cores: 3

@@ -112,6 +112,30 @@ def get_valid_surfaces(data_path: str) -> List[int]:
 
 
 #########################################################################################
+def get_valid_filaments(data_path: str) -> List[int]:
+    """
+    Returns a list of filaments that contains filament stats
+    because some filament might not contain statistics.
+
+    Args:
+        data_path (str): path to imaris file.
+
+    Returns:
+        List: _description_
+    """
+    ims_obj = ImarisDataObject(data_path)
+    filement_names = ims_obj.get_object_names("Filament")
+    valid_filaments = []
+    for idx, filement in enumerate(filement_names):
+        valid_filement = ims_obj.contains_filaments(filement)
+        if valid_filement:
+            valid_filaments.append(idx)
+        print(f"[info] -- filament id: {idx} -- filament: {valid_filement}")
+
+    return valid_filaments
+
+
+#########################################################################################
 def get_valid_track_surfaces(data_path: str) -> List[int]:
     """
     Returns a list of surfaces that contains surface stats and
@@ -157,6 +181,32 @@ def run_ray_actors(actors: List, cpu_cores: int):
     else:
         tasks = [
             actor.extract_and_save.remote(surface_id=0)
+            for _, actor in enumerate(actors)
+        ]
+        ready_tasks, _ = ray.wait(tasks, num_returns=len(tasks))
+        results = ray.get(ready_tasks)
+
+
+#########################################################################################
+# TODO: Combine the run_ray_actors
+# TODO: Need to unify surface_id / filament_ids so we dont have to change keywords
+def run_ray_filament_actors(actors: List, cpu_cores: int):
+    # generate results
+    # split if too many actors vs cores else run all
+    if cpu_cores and cpu_cores < len(actors):
+        num_actors = len(actors)
+        num_splits = np.round(num_actors / cpu_cores)
+        splits = np.array_split(np.asarray(actors, dtype=object), num_splits)
+        for split in splits:
+            tasks = [
+                actor.extract_and_save.remote(filament_id=0)
+                for _, actor in enumerate(split)
+            ]
+            ready_tasks, _ = ray.wait(tasks, num_returns=len(tasks))
+            results = ray.get(ready_tasks)
+    else:
+        tasks = [
+            actor.extract_and_save.remote(filament_id=0)
             for _, actor in enumerate(actors)
         ]
         ready_tasks, _ = ray.wait(tasks, num_returns=len(tasks))

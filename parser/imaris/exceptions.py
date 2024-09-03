@@ -1,4 +1,4 @@
-############################################
+###################################################################
 class NoTrackException(Exception):
     """raised when no Tracks are Found
 
@@ -9,7 +9,7 @@ class NoTrackException(Exception):
     pass
 
 
-############################################
+###################################################################
 class NoSurfaceException(Exception):
     """raised when no Surfaces are Found
 
@@ -20,7 +20,7 @@ class NoSurfaceException(Exception):
     pass
 
 
-###########################################
+###################################################################
 class NoFirstObjectException(Exception):
     """raised when no NoFirstObject are Found
 
@@ -31,9 +31,20 @@ class NoFirstObjectException(Exception):
     pass
 
 
-###########################################
+###################################################################
 class NoSurfaceObjectsException(Exception):
     """raised when no objects in a given surface are Found
+
+    Args:
+        Exception (_type_): _description_
+    """
+
+    pass
+
+
+###################################################################
+class NoFilamentsException(Exception):
+    """raised when no filaments in a given ims file are Found
 
     Args:
         Exception (_type_): _description_

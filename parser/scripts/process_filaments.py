@@ -1,11 +1,9 @@
 import os
-import ray
 import glob
-import numpy as np
 from typing import List, Tuple
-from utils.utils import get_valid_filaments, run_ray_actors
-from parsers.filament_parser import FilamentParserDistributed
 from imaris.exceptions import NoFilamentsException
+from utils.utils import get_valid_filaments, run_ray_filament_actors
+from parsers.filament_parser import FilamentParserDistributed
 
 """
 Notes:
@@ -20,7 +18,7 @@ def run_filament_parser_parallel(
     filament_ids: Tuple[int] = None,
 ) -> None:
     """
-    Runs ALL surfaces in an ims file in parallel.
+    Runs ALL filaments in an ims file in parallel.
     Pipeline:
         - For every file in every directory
         - Create a folder a with the same name as the filename inside save_dir provided
@@ -62,34 +60,34 @@ def run_filament_parser_parallel(
                 if not os.path.isdir(save_path):
                     os.makedirs(save_path)
 
-                # get num of valid surfaces
+                # get num of valid filaments
                 # this try/except section is kind of a safty check
                 # only working files ie: files with data to parse should have
                 # ..actors created.
                 try:
-                    valid_filament_ids = get_valid_filaments(data_path=file_path)
+                    valid_filaments_ids = get_valid_filaments(data_path=file_path)
                 except NoFilamentsException:
                     print(
                         f"[info] -- file {filename} contains no filaments .. skipping"
                     )
                     break
 
-                # if surface_ids are provided, filter valid_filament_ids
+                # if filament_ids are provided, filter valid_filaments_ids
                 if filament_ids:
-                    valid_filament_ids = list(
-                        filter(lambda x: (x + 1) in filament_ids, valid_filament_ids)
+                    valid_filaments_ids = list(
+                        filter(lambda x: (x + 1) in filament_ids, valid_filaments_ids)
                     )
 
-                if len(valid_filament_ids) == 0:
+                if len(valid_filaments_ids) == 0:
                     print(
                         f"[info] -- no valid filaments in {filename} .. skipping file"
                     )
                 else:
                     print(
-                        f"[info] -- creating {len(valid_filament_ids)} actors for {filename}"
+                        f"[info] -- creating {len(valid_filaments_ids)} actors for {filename}"
                     )
                     # create actors for each surface in current imaris file
-                    for idx in valid_filament_ids:
+                    for idx in valid_filaments_ids:
                         actor = FilamentParserDistributed.remote(
                             file_path,
                             filament_id=idx,
@@ -102,7 +100,7 @@ def run_filament_parser_parallel(
         print(f"[info] -- found {len(actors)} actors")
         print(f"[info] -- extracting data ... ")
 
-        run_ray_actors(actors, cpu_cores)
+        run_ray_filament_actors(actors, cpu_cores)
 
         print(f"[info] -- complete.")
 

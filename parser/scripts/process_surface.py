@@ -3,9 +3,9 @@ import ray
 import glob
 import numpy as np
 from typing import List, Tuple
-from utils.utils import get_valid_filaments, run_ray_actors
-from parsers.filament_parser import FilamentParserDistributed
-from imaris.exceptions import NoFilamentsException
+from utils.utils import get_valid_surfaces, run_ray_actors
+from parsers.surface_parser import SurfaceParserDistributed
+from imaris.exceptions import NoSurfaceException, NoSurfaceObjectsException
 
 """
 Notes:
@@ -13,11 +13,11 @@ Notes:
 
 
 #########################################################################################
-def run_filament_parser_parallel(
+def run_surface_parser_parallel(
     data_dirs: List[str],
     save_dirs: List[str],
     cpu_cores: int = None,
-    filament_ids: Tuple[int] = None,
+    surface_ids: Tuple[int] = None,
 ) -> None:
     """
     Runs ALL surfaces in an ims file in parallel.
@@ -33,11 +33,11 @@ def run_filament_parser_parallel(
         data_dirs (List[str]): _description_
         save_dirs (List[str]): _description_
         cpu_cores (int, optional): _description_. Defaults to None.
-        filament_ids (Tuple[int], optional): _description_. Defaults to None.
+        surface_ids (Tuple[int], optional): _description_. Defaults to None.
     """
-    if filament_ids:
-        assert isinstance(filament_ids, tuple), "filament_ids must be a tuple"
-        assert len(filament_ids) > 0, "filament_ids must not be empty"
+    if surface_ids:
+        assert isinstance(surface_ids, tuple), "surface_ids must be a tuple"
+        assert len(surface_ids) > 0, "surface_ids must not be empty"
 
     # zip data paths and save dirs
     data_paths = list(zip(data_dirs, save_dirs))
@@ -67,32 +67,28 @@ def run_filament_parser_parallel(
                 # only working files ie: files with data to parse should have
                 # ..actors created.
                 try:
-                    valid_filament_ids = get_valid_filaments(data_path=file_path)
-                except NoFilamentsException:
-                    print(
-                        f"[info] -- file {filename} contains no filaments .. skipping"
-                    )
+                    valid_surface_ids = get_valid_surfaces(data_path=file_path)
+                except NoSurfaceException:
+                    print(f"[info] -- file {filename} contains no surfaces .. skipping")
                     break
 
-                # if surface_ids are provided, filter valid_filament_ids
-                if filament_ids:
-                    valid_filament_ids = list(
-                        filter(lambda x: (x + 1) in filament_ids, valid_filament_ids)
+                # if surface_ids are provided, filter valid_surface_ids
+                if surface_ids:
+                    valid_surface_ids = list(
+                        filter(lambda x: (x + 1) in surface_ids, valid_surface_ids)
                     )
 
-                if len(valid_filament_ids) == 0:
-                    print(
-                        f"[info] -- no valid filaments in {filename} .. skipping file"
-                    )
+                if len(valid_surface_ids) == 0:
+                    print(f"[info] -- no valid surfaces in {filename} .. skipping file")
                 else:
                     print(
-                        f"[info] -- creating {len(valid_filament_ids)} actors for {filename}"
+                        f"[info] -- creating {len(valid_surface_ids)} actors for {filename}"
                     )
                     # create actors for each surface in current imaris file
-                    for idx in valid_filament_ids:
-                        actor = FilamentParserDistributed.remote(
+                    for idx in valid_surface_ids:
+                        actor = SurfaceParserDistributed.remote(
                             file_path,
-                            filament_id=idx,
+                            surface_id=idx,
                             save_dir=save_path,
                         )
                         actors.append(actor)

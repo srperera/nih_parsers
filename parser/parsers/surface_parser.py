@@ -461,9 +461,6 @@ class SurfaceParserDistributed(Parser):
     def extract_and_save(self, surface_id: int, save_dir: str = None) -> None:
         # this function is the funtion that gets called externally
         # we can have this function as a ray method to help with distributed execution
-        # self._configure_instance(surface_id=surface_id)
-        # del self.ims
-        # gc.collect()
 
         # check 1
         if (self.surface_id != -1) and (surface_id != 0):

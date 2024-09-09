@@ -40,21 +40,27 @@ def run_filament_parser_parallel(
     # zip data paths and save dirs
     data_paths = list(zip(data_dirs, save_dirs))
 
+    # summary
+    run_summary = {}
+
     for data_path, save_dir in data_paths:
         actors = []
 
         # get all imaris files from directory
         imaris_files = glob.glob(os.path.join(os.path.abspath(data_path), "*.ims"))
+        run_summary[data_path] = {}
 
         if len(imaris_files) == 0:
             print(f"[info] -- skipping folder no files found ")
+            run_summary[data_path] = "NO FILES IN FOLDER"
             pass
 
         else:
             for file_path in imaris_files:
                 # get filename from path
-                #filename = os.path.basename(file_path).split(".")[0]
+                # filename = os.path.basename(file_path).split(".")[0]
                 filename = os.path.splitext(os.path.basename(file_path))[0]
+                run_summary[data_path][filename] = {}
 
                 # create dir with same name as filename
                 save_path = os.path.join(save_dir, filename)
@@ -67,10 +73,14 @@ def run_filament_parser_parallel(
                 # ..actors created.
                 try:
                     valid_filaments_ids = get_valid_filaments(data_path=file_path)
+                    run_summary[data_path][filename][
+                        "all_filaments"
+                    ] = valid_filaments_ids
                 except NoFilamentsException:
                     print(
                         f"[info] -- file {filename} contains no filaments .. skipping"
                     )
+                    run_summary[data_path][filename] = "NO FILAMENTS"
                     continue
 
                 # if filament_ids are provided, filter valid_filaments_ids
@@ -88,6 +98,7 @@ def run_filament_parser_parallel(
                         f"[info] -- creating {len(valid_filaments_ids)} actors for {filename}"
                     )
                     # create actors for each surface in current imaris file
+                    run_summary[data_path][filename]["extracted_filaments"] = []
                     for idx in valid_filaments_ids:
                         actor = FilamentParserDistributed.remote(
                             file_path,
@@ -95,7 +106,15 @@ def run_filament_parser_parallel(
                             save_dir=save_path,
                         )
                         actors.append(actor)
+
+                        # update summary
+                        run_summary[data_path][filename]["extracted_filaments"].append(
+                            idx
+                        )
+
                     print("\n")
+
+        run_summary[data_path]["total filaments"] = len(actors)
 
         # generate results
         print(f"[info] -- found {len(actors)} actors")
@@ -104,6 +123,8 @@ def run_filament_parser_parallel(
         run_ray_filament_actors(actors, cpu_cores)
 
         print(f"[info] -- complete.")
+
+        return run_summary
 
 
 #########################################################################################

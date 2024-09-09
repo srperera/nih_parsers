@@ -9,7 +9,7 @@ save_dir: ["results/v1"]
 # Surface of Interest NOT ZERO INDEX ie: START WITH 1
 # If ALL surfaces are needed use valid_surfaces = -1
 #valid_surfaces: [1,2,3,7,12]
-valid_filaments: -1 
+valid_filaments: [1]
 
 # specify number of cpu cores
 cpu_cores: 3

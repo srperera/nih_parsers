@@ -51,20 +51,26 @@ def run_track_parser_parallel(
     # zip data paths and save dirs
     data_paths = list(zip(data_dirs, save_dirs))
 
+    # summary
+    run_summary = {}
+
     for data_path, save_dir in data_paths:
         actors = []
 
         # get all imaris files from directory
         imaris_files = glob.glob(os.path.join(os.path.abspath(data_path), "*.ims"))
+        run_summary[data_path] = {}
 
         if len(imaris_files) == 0:
             print(f"[info] -- skipping folder no files found ")
+            run_summary[data_path] = "NO FILES IN FOLDER"
             pass
 
         else:
             for file_path in imaris_files:
                 # get filename from path
                 filename = os.path.splitext(os.path.basename(file_path))[0]
+                run_summary[data_path][filename] = {}
 
                 # create dir with same name as filename
                 save_path = os.path.join(save_dir, filename)
@@ -74,8 +80,10 @@ def run_track_parser_parallel(
                 # get num of valid surfaces
                 try:
                     valid_surface_ids = get_valid_track_surfaces(data_path=file_path)
+                    run_summary[data_path][filename]["all_tracks"] = valid_surface_ids
                 except NoSurfaceException:
                     print(f"[info] -- file {filename} contains no surfaces .. skipping")
+                    run_summary[data_path][filename] = "NO FILAMENTS"
                     continue
 
                 # if surface_ids are provided, filter valid_surface_ids
@@ -93,6 +101,7 @@ def run_track_parser_parallel(
                     )
 
                     # create actors for each surface in current imaris file
+                    run_summary[data_path][filename]["extracted_tracks"] = []
                     for idx in valid_surface_ids:
                         actor = TrackParserDistributed.remote(
                             file_path,
@@ -100,7 +109,12 @@ def run_track_parser_parallel(
                             save_dir=save_path,
                         )
                         actors.append(actor)
+
+                        # update summary
+                        run_summary[data_path][filename]["extracted_tracks"].append(idx)
                 print("\n")
+
+        run_summary[data_path]["total surfaces with tracks"] = len(actors)
 
         # generate results
         print(f"[info] -- found {len(actors)} surfaces")

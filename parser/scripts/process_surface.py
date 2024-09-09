@@ -55,7 +55,7 @@ def run_surface_parser_parallel(
         else:
             for file_path in imaris_files:
                 # get filename from path
-                filename = os.path.basename(file_path).split(".")[0]
+                filename = os.path.splitext(os.path.basename(file_path))[0]
 
                 # create dir with same name as filename
                 save_path = os.path.join(save_dir, filename)
@@ -70,7 +70,7 @@ def run_surface_parser_parallel(
                     valid_surface_ids = get_valid_surfaces(data_path=file_path)
                 except NoSurfaceException:
                     print(f"[info] -- file {filename} contains no surfaces .. skipping")
-                    break
+                    continue
 
                 # if surface_ids are provided, filter valid_surface_ids
                 if surface_ids:

@@ -53,7 +53,8 @@ def run_filament_parser_parallel(
         else:
             for file_path in imaris_files:
                 # get filename from path
-                filename = os.path.basename(file_path).split(".")[0]
+                #filename = os.path.basename(file_path).split(".")[0]
+                filename = os.path.splitext(os.path.basename(file_path))[0]
 
                 # create dir with same name as filename
                 save_path = os.path.join(save_dir, filename)
@@ -70,7 +71,7 @@ def run_filament_parser_parallel(
                     print(
                         f"[info] -- file {filename} contains no filaments .. skipping"
                     )
-                    break
+                    continue
 
                 # if filament_ids are provided, filter valid_filaments_ids
                 if filament_ids:

@@ -1,7 +1,6 @@
 # put all I/O utils functions here
 import os
 import yaml
-import numpy as np
 from typing import Dict
 
 

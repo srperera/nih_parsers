@@ -7,7 +7,6 @@ from typing import Dict, List
 
 from .parser_base import Parser
 from imaris.imaris import ImarisDataObject
-import time
 
 # Notes:
 """

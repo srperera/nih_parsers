@@ -1,16 +1,10 @@
 # List of directories that contains .ims files
 data_dir: [
-  '\\niaid-fas1\Bioimaging\Users\rogandc\04052023 SHIV aLN iLN 6-color',
-  '\\niaid-fas1\Bioimaging\Users\rogandc\04102023 VLP ALN ILN 6c',
-  '\\niaid-fas1\Bioimaging\Users\rogandc\06082023 SIV infected VLP 6-color',
-  '\\niaid-fas1\Bioimaging\Users\rogandc\06162023 SIV infected VLP 6-color'
+  '/home/shehan/Documents/projects/nih/nih_parsers/data/temp_test'
 ]
 
 # File Path: Optional If You want to Run a single .ims File
-save_dir: ['\\niaid-fas1\Bioimaging\Users\rogandc\04052023 SHIV aLN iLN 6-color\flowjo1\surface', 
-            '\\niaid-fas1\Bioimaging\Users\rogandc\04102023 VLP ALN ILN 6c\flowjo1\surface', 
-            '\\niaid-fas1\Bioimaging\Users\rogandc\06082023 SIV infected VLP 6-color\flowjo1\surface',
-            '\\niaid-fas1\Bioimaging\Users\rogandc\06162023 SIV infected VLP 6-color\flowjo1\surface']
+save_dir: ['/home/shehan/Documents/projects/nih/nih_parsers/data/temp_test']
 
 # Surface of Interest NOT ZERO INDEX ie: START WITH 1
 # If ALL surfaces are needed use valid_surfaces = -1
@@ -18,4 +12,4 @@ save_dir: ['\\niaid-fas1\Bioimaging\Users\rogandc\04052023 SHIV aLN iLN 6-color\
 valid_surfaces: -1 
 
 # specify number of cpu cores
-cpu_cores: 10
+cpu_cores: 12

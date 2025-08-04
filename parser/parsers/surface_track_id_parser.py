@@ -376,6 +376,16 @@ class SurfaceObjectTrackParserDistributed(Parser):
 
         object_info = self.object_info.get(surface_name)
         track_info = self.track_info.get(surface_name)
+        
+        # temp function to handle the case where when we perform 
+        # apply and an object id is missing we simply just 
+        # leave it empty
+        def _update_object_with_track_id(database, x):
+            try:
+                return database[int(x["Object_ID"].item())]
+            except KeyError:
+                return None
+                            
 
         # create database to make obj to track matching efficient
         # key = numerical object id value = track id the obj belong to
@@ -388,9 +398,17 @@ class SurfaceObjectTrackParserDistributed(Parser):
             for i in range(start, end):
                 obj_id = object_info.iloc[i]["ID_Object"]
                 database[obj_id] = track_id
+                
+        #return database
 
+        # dataframe["Track_ID"] = dataframe.apply(
+        #     func=lambda x: database[int(x["Object_ID"].item())],
+        #     axis=1,
+        # )
+        
+        func = partial(_update_object_with_track_id, database)
         dataframe["Track_ID"] = dataframe.apply(
-            func=lambda x: database[x["Object_ID"].item()],
+            func=func,
             axis=1,
         )
 
@@ -463,7 +481,7 @@ class SurfaceObjectTrackParserDistributed(Parser):
         storage["stats_df"] = stats_df
 
         # add track id information for each object
-        # stats_df = self._update_track_id_info(surface_name, stats_df)
+        #stats_df = self._update_track_id_info(surface_name, stats_df) # OLD
         stats_df = self._update_track_id_info(surface_id, stats_df)
         storage["final_df"] = stats_df
 

@@ -115,16 +115,15 @@ class ImarisDataObject:
         Returns:
             pd.Series: Track ids for given surface
         """
-        track_ids = pd.DataFrame(
-            np.asarray(
-                self.data.get("Scene8").get("Content").get(object_name).get("Track0")
-            )
+        track_ids = (
+            self.data.get("Scene8").get("Content").get(object_name).get("Track0")
         )
         if track_ids is None:
             # maybe log a warning?
+            # TODO: 1. Tell user this object contains no track information
             return None
         else:
-            return track_ids["ID"]
+            return pd.DataFrame(np.asarray(track_ids))["ID"]
 
     def get_track_info(self, object_name: str) -> Union[pd.DataFrame, None]:
         """
@@ -137,16 +136,15 @@ class ImarisDataObject:
         Returns:
             pd.Series: Track ids for given surface
         """
-        track_info = pd.DataFrame(
-            np.asarray(
-                self.data.get("Scene8").get("Content").get(object_name).get("Track0")
-            )
+        track_info = (
+            self.data.get("Scene8").get("Content").get(object_name).get("Track0")
         )
         if track_info is None:
             # maybe log a warning?
+            # TODO: 2. Tell user this object contains no track information
             return None
         else:
-            return track_info
+            return pd.DataFrame(np.asarray(track_info))
 
     def get_object_ids(self, object_name: str, **kwargs) -> Union[pd.Series, None]:
         """
@@ -296,15 +294,11 @@ class ImarisDataObject:
         Returns:
             pd.Series: Object ids for given surface
         """
-        object_data = pd.DataFrame(
-            np.asarray(
-                self.data.get("Scene8")
-                .get("Content")
-                .get(object_name)
-                .get("TrackObject0")
-            )
+        object_data = (
+            self.data.get("Scene8").get("Content").get(object_name).get("TrackObject0")
         )
         if object_data is not None:
-            return object_data
+            return pd.DataFrame(np.asarray(object_data))["ID_Object"]
         else:
+            # TODO: 3. Tell user this object contains no track information
             return None

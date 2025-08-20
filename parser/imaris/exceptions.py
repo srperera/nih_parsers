@@ -51,3 +51,14 @@ class NoFilamentsException(Exception):
     """
 
     pass
+
+
+###################################################################
+class NoPointsException(Exception):
+    """raised when no points in a given ims file are Found
+
+    Args:
+        Exception (_type_): _description_
+    """
+
+    pass

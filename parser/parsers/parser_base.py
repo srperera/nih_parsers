@@ -9,8 +9,8 @@ class Parser(ABC):
         pass
 
     @abstractmethod
-    def _generate_csv(self):
-        # a function to combine information to generate final csv
+    def _format_data(self):
+        # a function to combine all the information into a useful dataframe format.
         pass
 
     @abstractmethod

@@ -21,7 +21,7 @@ from imaris.imaris import ImarisDataObject
 
 
 #############################################################################
-@ray.remote
+# @ray.remote
 class FilamentParserDistributed(Parser):
     """
     Extracts Filament Level Information From Imaris File
@@ -55,6 +55,9 @@ class FilamentParserDistributed(Parser):
         del self.ims
         gc.collect()
 
+        # new addition
+        self.filename = os.path.basename(ims_file_path).split(".")[0]
+
     def _configure_instance(self, filament_id: int) -> None:
         """
         * Extracts relevant information from ims object and
@@ -70,9 +73,11 @@ class FilamentParserDistributed(Parser):
             - all the factor info -- {id: pd.DataFrame}
         """
         # extract all information and saves it as a instance var
-        if filament_id == -1:  # configure all available filaments
+        if filament_id == -1:
+            # configure all available filaments
             self.filament_names = self.ims.get_object_names("Filament")
-        else:  # grab the filament we care about,
+        else:
+            # grab the filament we care about,
             self.filament_names = self.ims.get_object_names("Filament")
             if (filament_id >= 0) and (filament_id < len(self.filament_names)):
                 self.filament_names = [self.filament_names[filament_id]]
@@ -80,7 +85,8 @@ class FilamentParserDistributed(Parser):
                 raise ValueError(
                     f"filament_id {filament_id} exceeds number of filaments available"
                 )
-            else:  # some currently unknown error
+            else:
+                # some currently unknown error
                 raise NotImplementedError
 
         assert type(self.filament_names) == list, "filament_names should be a list"
@@ -105,7 +111,7 @@ class FilamentParserDistributed(Parser):
 
         # get all the factor table info for every filament {surf_id: factor_df}
         self.object_ids = {
-            filament_id: self.ims.get_object_ids(filament_name, use_stats_data=True)
+            filament_id: self.ims.get_object_ids(filament_name)
             for filament_id, filament_name in enumerate(self.filament_names)
         }
 
@@ -129,7 +135,24 @@ class FilamentParserDistributed(Parser):
         grouped_stats = {k: v["Value"] for k, v in grouped_stats.items()}
         return grouped_stats
 
-    def _generate_csv(
+    def _organize_stats_fast(self, stats_values: pd.DataFrame) -> Dict:
+        """Organized the data such that it looks like
+        {ID_Object: {Stats Name: Value}}
+
+        Args:
+            stats_values (pd.DataFrame): a single dataframe
+            that contains the statistics for a single spot
+
+        Returns:
+            Dict: _description_
+        """
+        grouped_stats = {
+            obj_id: dict(zip(sub.ID_StatisticsType, sub.Value))
+            for obj_id, sub in stats_values.groupby("ID_Object")
+        }
+        return grouped_stats
+
+    def _format_data(
         self,
         stats_values: Dict,
         stat_names: pd.DataFrame,
@@ -170,58 +193,6 @@ class FilamentParserDistributed(Parser):
 
         # store ims_filename
         self.ims_filename = ims_filename
-
-    def _process(self, filament_id: int) -> None:
-        """
-        Runs a single end to end parser pipeline on a single filament
-        Steps:
-            - get stat names for a single filament
-            - get stat values for a single filament
-            - filter stat values to keep only track ids
-            - filter stats values to remove track level stat information
-            - rename certian columns (if needed)(need a custom func for this to add channel info)
-            - organize the filtered stats
-            - generate csv
-            - save csv
-
-        Args:
-            filament_id (int): _description_
-        """
-        # gather info for current filament
-        filament_name = self.filament_names[filament_id]
-        stat_names = self.stats_names.get(filament_id)
-        stat_values = self.stats_values.get(filament_id)
-        object_id = self.object_ids.get(filament_id)
-        factor = self.factors.get(filament_id)
-
-        # update channel information
-        stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
-        # update image level information
-        stat_names = self._update_image_level_info(
-            stats_names=stat_names, factor=factor
-        )
-        # update image depth level information
-        stat_names = self._update_depth_level_info(
-            stats_names=stat_names, factor=factor
-        )
-
-        # update level information
-        stat_names = self._update_level_info(stats_names=stat_names, factor=factor)
-
-        # filter stats values by object ids (ie: ignore info related to trackids)
-        stat_values = self._filter_stats(
-            stats_values=stat_values,
-            filter_col_names=["ID_Object"],
-            filter_values=[object_id],
-        )
-
-        # organize stats value (most compute used here)
-        organized_stats = self._organize_stats(stat_values)
-
-        # generate csv
-        stats_df = self._generate_csv(organized_stats, stat_names=stat_names)
-
-        return stats_df
 
     def _filter_stats(
         self,
@@ -434,10 +405,9 @@ class FilamentParserDistributed(Parser):
         """
         raise NotImplementedError
 
-    def inspect(self, filament_id: int) -> Dict:
+    def _process(self, filament_id: int) -> None:
         """
         Runs a single end to end parser pipeline on a single filament
-        and returns all components as a dict.
         Steps:
             - get stat names for a single filament
             - get stat values for a single filament
@@ -451,56 +421,26 @@ class FilamentParserDistributed(Parser):
         Args:
             filament_id (int): _description_
         """
-        # self._configure_instance(filament_id=filament_id)
-        # del self.ims
-        # gc.collect()
-
-        # check 1
-        if (self.filament_id != -1) and (filament_id != 0):
-            raise ValueError(
-                f"class is initialized with 1 filament, filament_id should be set to 0"
-            )
-
-        # check 2
-        if filament_id > len(self.filament_names):
-            raise ValueError(
-                f"filament_id {filament_id} exceeds number of filaments available {len(self.filament_names)}"
-            )
-
-        # dict to hold all values to be returned for inspection
-        storage = {}
-
         # gather info for current filament
         filament_name = self.filament_names[filament_id]
-        storage["filament_name"] = filament_name
         stat_names = self.stats_names.get(filament_id)
-        storage["stat_names_raw"] = stat_names
         stat_values = self.stats_values.get(filament_id)
-        storage["stat_values_raw"] = stat_values
         object_id = self.object_ids.get(filament_id)
-        storage["object_id"] = object_id
         factor = self.factors.get(filament_id)
-        storage["factor"] = factor
 
         # update channel information
         stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
-        storage["stat_names_channel_info"] = stat_names
-
         # update image level information
         stat_names = self._update_image_level_info(
             stats_names=stat_names, factor=factor
         )
-        storage["stat_names_image_info"] = stat_names
-
         # update image depth level information
         stat_names = self._update_depth_level_info(
             stats_names=stat_names, factor=factor
         )
-        storage["stat_names_depth_info"] = stat_names
 
         # update level information
         stat_names = self._update_level_info(stats_names=stat_names, factor=factor)
-        storage["stat_names_filament_info"] = stat_names
 
         # filter stats values by object ids (ie: ignore info related to trackids)
         stat_values = self._filter_stats(
@@ -508,17 +448,14 @@ class FilamentParserDistributed(Parser):
             filter_col_names=["ID_Object"],
             filter_values=[object_id],
         )
-        storage["stat_values_filtered"] = stat_values
 
         # organize stats value (most compute used here)
-        organized_stats = self._organize_stats(stat_values)
-        storage["organized_stats"] = organized_stats
+        organized_stats = self._organize_stats_fast(stat_values)
 
         # generate csv
-        stats_df = self._generate_csv(organized_stats, stat_names=stat_names)
-        storage["stats_df"] = stats_df
+        stats_df = self._format_data(organized_stats, stat_names=stat_names)
 
-        return storage
+        return stats_df
 
     def get_filament_stats_info(self, filament_id: int) -> List[str]:
         """Returns all the stats information in a given filament id
@@ -614,6 +551,94 @@ class FilamentParserDistributed(Parser):
             self._save_csv(dataframe, save_dir, filament_id=self.filament_id)
 
         print(f"[info] -- finished: {self.ims_filename}")
+
+    def inspect(self, filament_id: int) -> Dict:
+        """
+        Runs a single end to end parser pipeline on a single filament
+        and returns all components as a dict.
+        Steps:
+            - get stat names for a single filament
+            - get stat values for a single filament
+            - filter stat values to keep only track ids
+            - filter stats values to remove track level stat information
+            - rename certian columns (if needed)(need a custom func for this to add channel info)
+            - organize the filtered stats
+            - generate csv
+            - save csv
+
+        Args:
+            filament_id (int): _description_
+        """
+        # check 1
+        if (self.filament_id != -1) and (filament_id != 0):
+            raise ValueError(
+                f"class is initialized with 1 filament, filament_id should be set to 0"
+            )
+
+        # check 2
+        if filament_id > len(self.filament_names):
+            raise ValueError(
+                f"filament_id {filament_id} exceeds number of filaments available {len(self.filament_names)}"
+            )
+
+        # dict to hold all values to be returned for inspection
+        storage = {}
+
+        # gather info for current filament
+        filament_name = self.filament_names[filament_id]
+        storage["filament_name"] = filament_name
+        stat_names = self.stats_names.get(filament_id)
+        storage["stat_names_raw"] = stat_names
+        stat_values = self.stats_values.get(filament_id)
+        storage["stat_values_raw"] = stat_values
+        object_id = self.object_ids.get(filament_id)
+        storage["object_id"] = object_id
+        factor = self.factors.get(filament_id)
+        storage["factor"] = factor
+
+        # update channel information
+        stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
+        storage["stat_names_channel_info"] = stat_names
+
+        # update image level information
+        stat_names = self._update_image_level_info(
+            stats_names=stat_names, factor=factor
+        )
+        storage["stat_names_image_info"] = stat_names
+
+        # update image depth level information
+        stat_names = self._update_depth_level_info(
+            stats_names=stat_names, factor=factor
+        )
+        storage["stat_names_depth_info"] = stat_names
+
+        # update level information
+        stat_names = self._update_level_info(stats_names=stat_names, factor=factor)
+        storage["stat_names_filament_info"] = stat_names
+
+        # filter stats values by object ids (ie: ignore info related to trackids)
+        stat_values = self._filter_stats(
+            stats_values=stat_values,
+            filter_col_names=["ID_Object"],
+            filter_values=[object_id],
+        )
+        storage["stat_values_filtered"] = stat_values
+
+        # organize stats value (most compute used here)
+        organized_stats = self._organize_stats(stat_values)
+        storage["organized_stats"] = organized_stats
+
+        organized_stats2 = self._organize_stats_fast(stat_values)
+        storage["organized_stats2"] = organized_stats2
+
+        # generate csv
+        stats_df = self._format_data(organized_stats, stat_names=stat_names)
+        storage["final_df"] = stats_df
+
+        stats_df2 = self._format_data(organized_stats2, stat_names=stat_names)
+        storage["final_df2"] = stats_df2
+
+        return storage
 
 
 #############################################################################

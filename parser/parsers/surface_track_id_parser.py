@@ -27,11 +27,12 @@ from imaris.imaris import ImarisDataObject
 """
 
 
-#############################################################################
-@ray.remote
+#################################################################################################
+#################################################################################################
+# @ray.remote
 class SurfaceObjectTrackParserDistributed(Parser):
     """
-    Extracts Surface Level Information From Imaris File
+    Extracts Surface Track Level Information From Imaris File
 
     Args:
         Parser (ABCMeta): Parser Abstract Base Class
@@ -66,12 +67,18 @@ class SurfaceObjectTrackParserDistributed(Parser):
             - all the stats_names -- {id: pd.DataFrame}
             - all the stats values -- {id: pd.DataFrame}
             - all the factor info -- {id: pd.DataFrame}
+
+        Args:
+            spot_id (int): index of the spot ["points0", "points1"]
+                spot_id = 0 is information on "points0" etc
+
         """
-        # TODO: check to ensure surfaces exist or raise error
         # extract all information and saves it as a instance var
-        if surface_id == -1:  # configure all available surfaces
+        if surface_id == -1:
+            # configure all available surfaces
             self.surface_names = self.ims.get_object_names("Surface")
-        else:  # grab the surface we care about
+        else:
+            # grab the surface we care about
             self.surface_names = self.ims.get_object_names("Surface")
             if (surface_id >= 0) and (surface_id <= len(self.surface_names)):
                 self.surface_names = [self.surface_names[surface_id]]
@@ -79,10 +86,9 @@ class SurfaceObjectTrackParserDistributed(Parser):
                 raise ValueError(
                     f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
                 )
-            else:  # some currently unknown error
-                raise NotImplementedError
-
-        assert type(self.surface_names) == list, "surface_names should be a list"
+            else:
+                # some currently unknown error
+                raise NotImplementedError("currently unknown errror lol")
 
         # get all the stats names for every surface {surf_id: stats_name_df}
         self.stats_names = {
@@ -102,28 +108,27 @@ class SurfaceObjectTrackParserDistributed(Parser):
             for surface_id, surface_name in enumerate(self.surface_names)
         }
 
-        # get all the object id information every surface {surf_id: factor_df}
-        self.object_ids = {
-            surface_id: self.ims.get_object_ids(surface_name)
-            for surface_id, surface_name in enumerate(self.surface_names)
-        }
-
         # gets all the track id information for every surface
-        # if no tracks found this should throw a no track exception
         self.track_ids = {
             surface_id: self.ims.get_track_ids(surface_name)
             for surface_id, surface_name in enumerate(self.surface_names)
         }
 
         # get all object information for every surface
-        self.object_info = {
-            surface_id: self.ims.get_track_object_info(surface_name)
+        self.track_info = {
+            surface_id: self.ims.get_track_info(surface_name)
+            for surface_id, surface_name in enumerate(self.surface_names)
+        }
+
+        # get all the object id information every surface {surf_id: factor_df}
+        self.object_ids = {
+            surface_id: self.ims.get_track_object_ids(surface_name)
             for surface_id, surface_name in enumerate(self.surface_names)
         }
 
         # get all object information for every surface
-        self.track_info = {
-            surface_id: self.ims.get_track_info(surface_name)
+        self.object_info = {
+            surface_id: self.ims.get_track_object_info(surface_name)
             for surface_id, surface_name in enumerate(self.surface_names)
         }
 
@@ -146,7 +151,24 @@ class SurfaceObjectTrackParserDistributed(Parser):
         grouped_stats = {k: v["Value"] for k, v in grouped_stats.items()}
         return grouped_stats
 
-    def _generate_csv(
+    def _organize_stats_fast(self, stats_values: pd.DataFrame) -> Dict:
+        """Organized the data such that it looks like
+        {ID_Object: {Stats Name: Value}}
+
+        Args:
+            stats_values (pd.DataFrame): a single dataframe
+            that contains the statistics for a single spot
+
+        Returns:
+            Dict: _description_
+        """
+        grouped_stats = {
+            obj_id: dict(zip(sub.ID_StatisticsType, sub.Value))
+            for obj_id, sub in stats_values.groupby("ID_Object")
+        }
+        return grouped_stats
+
+    def _format_data(
         self,
         stats_values: Dict,
         stat_names: pd.DataFrame,
@@ -183,52 +205,6 @@ class SurfaceObjectTrackParserDistributed(Parser):
 
         # store ims_filename
         self.ims_filename = ims_filename
-
-    def _process(self, surface_id: int) -> None:
-        """
-        Runs a single end to end parser pipeline on a single surface
-        Steps:
-            - get stat names for a single surface
-            - get stat values for a single surface
-            - filter stat values to keep only track ids
-            - filter stats values to remove track level stat information
-            - rename certian columns (if needed)(need a custom func for this to add channel info)
-            - organize the filtered stats
-            - generate csv
-            - save csv
-
-        Args:
-            surface_id (int): _description_
-        """
-        # gather info for current surface
-        surface_name = self.surface_names[surface_id]
-        stat_names = self.stats_names.get(surface_id)
-        stat_values = self.stats_values.get(surface_id)
-        object_id = self.object_ids.get(surface_id)
-        factor = self.factors.get(surface_id)
-
-        # update channel and surface names
-        stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
-        stat_names = self._update_surface_info(stats_names=stat_names, factor=factor)
-
-        # filter stats values by object ids (ie: ignore info related to trackids)
-        stat_values = self._filter_stats(
-            stats_values=stat_values,
-            filter_col_names=["ID_Object"],
-            filter_values=[object_id],
-        )
-
-        # organize stats value (most compute used here)
-        organized_stats = self._organize_stats(stat_values)
-
-        # generate csv
-        stats_df = self._generate_csv(organized_stats, stat_names=stat_names)
-
-        # add track id information for each object
-        # stats_df = self._update_track_id_info(surface_name, stats_df)
-        stats_df = self._update_track_id_info(surface_id, stats_df)
-
-        return stats_df
 
     def _filter_stats(
         self,
@@ -363,6 +339,56 @@ class SurfaceObjectTrackParserDistributed(Parser):
         """
         raise NotImplementedError
 
+    # def _update_track_id_info(self, surface_name, dataframe) -> pd.DataFrame:
+    #     """
+    #     Returns the track id an object belongs to
+
+    #     Args:
+    #         object_id (int): _description_
+
+    #     Returns:
+    #         int: _description_
+    #     """
+
+    #     object_info = self.object_info.get(surface_name)
+    #     track_info = self.track_info.get(surface_name)
+
+    #     # temp function to handle the case where when we perform
+    #     # apply and an object id is missing we simply just
+    #     # leave it empty
+    #     def _update_object_with_track_id(database, x):
+    #         try:
+    #             return database[int(x["Object_ID"].item())]
+    #         except KeyError:
+    #             return None
+
+    #     # create database to make obj to track matching efficient
+    #     # key = numerical object id value = track id the obj belong to
+    #     database = {}
+    #     for idx in range(len(track_info)):
+    #         data = track_info.iloc[idx]
+    #         start = data["IndexTrackObjectBegin"]
+    #         end = data["IndexTrackObjectEnd"]
+    #         track_id = data["ID"]
+    #         for i in range(start, end):
+    #             obj_id = object_info.iloc[i]["ID_Object"]
+    #             database[obj_id] = track_id
+
+    #     # return database
+
+    #     # dataframe["Track_ID"] = dataframe.apply(
+    #     #     func=lambda x: database[int(x["Object_ID"].item())],
+    #     #     axis=1,
+    #     # )
+
+    #     func = partial(_update_object_with_track_id, database)
+    #     dataframe["Track_ID"] = dataframe.apply(
+    #         func=func,
+    #         axis=1,
+    #     )
+
+    #     return dataframe
+
     def _update_track_id_info(self, surface_name, dataframe) -> pd.DataFrame:
         """
         Returns the track id an object belongs to
@@ -376,16 +402,6 @@ class SurfaceObjectTrackParserDistributed(Parser):
 
         object_info = self.object_info.get(surface_name)
         track_info = self.track_info.get(surface_name)
-        
-        # temp function to handle the case where when we perform 
-        # apply and an object id is missing we simply just 
-        # leave it empty
-        def _update_object_with_track_id(database, x):
-            try:
-                return database[int(x["Object_ID"].item())]
-            except KeyError:
-                return None
-                            
 
         # create database to make obj to track matching efficient
         # key = numerical object id value = track id the obj belong to
@@ -398,26 +414,17 @@ class SurfaceObjectTrackParserDistributed(Parser):
             for i in range(start, end):
                 obj_id = object_info.iloc[i]["ID_Object"]
                 database[obj_id] = track_id
-                
-        #return database
 
-        # dataframe["Track_ID"] = dataframe.apply(
-        #     func=lambda x: database[int(x["Object_ID"].item())],
-        #     axis=1,
-        # )
-        
-        func = partial(_update_object_with_track_id, database)
         dataframe["Track_ID"] = dataframe.apply(
-            func=func,
+            func=lambda x: database[x["Object_ID"].item()],
             axis=1,
         )
 
         return dataframe
 
-    def inspect(self, surface_id: int) -> Dict:
+    def _process(self, surface_id: int) -> None:
         """
         Runs a single end to end parser pipeline on a single surface
-        and returns all components as a dict.
         Steps:
             - get stat names for a single surface
             - get stat values for a single surface
@@ -431,38 +438,16 @@ class SurfaceObjectTrackParserDistributed(Parser):
         Args:
             surface_id (int): _description_
         """
-        # check 1
-        if (self.surface_id != -1) and (surface_id != 0):
-            raise ValueError(
-                f"class is initialized with 1 surface, surface_id should be set to 0"
-            )
-
-        # check 2
-        if surface_id > len(self.surface_names):
-            raise ValueError(
-                f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
-            )
-
-        # dict to hold all values to be returned for inspection
-        storage = {}
-
         # gather info for current surface
         surface_name = self.surface_names[surface_id]
-        storage["surface_name"] = surface_name
         stat_names = self.stats_names.get(surface_id)
-        storage["stat_names_raw"] = stat_names
         stat_values = self.stats_values.get(surface_id)
-        storage["stat_values_raw"] = stat_values
         object_id = self.object_ids.get(surface_id)
-        storage["object_id"] = object_id
         factor = self.factors.get(surface_id)
-        storage["factor"] = factor
 
         # update channel and surface names
         stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
-        storage["stat_names_channel_info"] = stat_names
         stat_names = self._update_surface_info(stats_names=stat_names, factor=factor)
-        storage["stat_names_surface_info"] = stat_names
 
         # filter stats values by object ids (ie: ignore info related to trackids)
         stat_values = self._filter_stats(
@@ -470,22 +455,17 @@ class SurfaceObjectTrackParserDistributed(Parser):
             filter_col_names=["ID_Object"],
             filter_values=[object_id],
         )
-        storage["stat_values_filtered"] = stat_values
 
         # organize stats value (most compute used here)
-        organized_stats = self._organize_stats(stat_values)
-        storage["organized_stats"] = organized_stats
+        organized_stats = self._organize_stats_fast(stat_values)
 
         # generate csv
-        stats_df = self._generate_csv(organized_stats, stat_names=stat_names)
-        storage["stats_df"] = stats_df
+        stats_df = self._format_data(organized_stats, stat_names=stat_names)
 
         # add track id information for each object
-        #stats_df = self._update_track_id_info(surface_name, stats_df) # OLD
         stats_df = self._update_track_id_info(surface_id, stats_df)
-        storage["final_df"] = stats_df
 
-        return storage
+        return stats_df
 
     def get_surface_stats_info(self, surface_id: int) -> List[str]:
         """Returns all the stats information in a given surface id
@@ -564,5 +544,87 @@ class SurfaceObjectTrackParserDistributed(Parser):
 
         print(f"[info] -- finished: {self.ims_filename}")
 
+    def inspect(self, surface_id: int) -> Dict:
+        """
+        Runs a single end to end parser pipeline on a single surface
+        and returns all components as a dict.
+        Steps:
+            - get stat names for a single surface
+            - get stat values for a single surface
+            - filter stat values to keep only track ids
+            - filter stats values to remove track level stat information
+            - rename certian columns (if needed)(need a custom func for this to add channel info)
+            - organize the filtered stats
+            - generate csv
+            - save csv
 
-#############################################################################
+        Args:
+            surface_id (int): _description_
+        """
+        # check 1
+        if (self.surface_id != -1) and (surface_id != 0):
+            raise ValueError(
+                f"class is initialized with 1 surface, surface_id should be set to 0"
+            )
+
+        # check 2
+        if surface_id > len(self.surface_names):
+            raise ValueError(
+                f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
+            )
+
+        # dict to hold all values to be returned for inspection
+        storage = {}
+
+        # gather info for current surface
+        surface_name = self.surface_names[surface_id]
+        storage["surface_name"] = surface_name
+        stat_names = self.stats_names.get(surface_id)
+        storage["stat_names_raw"] = stat_names
+        stat_values = self.stats_values.get(surface_id)
+        storage["stat_values_raw"] = stat_values
+        object_id = self.object_ids.get(surface_id)
+        storage["object_id"] = object_id
+        factor = self.factors.get(surface_id)
+        storage["factor"] = factor
+
+        # update channel and surface names
+        stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
+        storage["stat_names_channel_info"] = stat_names
+        stat_names = self._update_surface_info(stats_names=stat_names, factor=factor)
+        storage["stat_names_surface_info"] = stat_names
+
+        # filter stats values by object ids (ie: ignore info related to trackids)
+        stat_values = self._filter_stats(
+            stats_values=stat_values,
+            filter_col_names=["ID_Object"],
+            filter_values=[object_id],
+        )
+        storage["stat_values_filtered"] = stat_values
+
+        # organize stats value (most compute used here)
+        organized_stats = self._organize_stats(stat_values)
+        storage["organized_stats"] = organized_stats
+
+        organized_stats2 = self._organize_stats_fast(stat_values)
+        storage["organized_stats2"] = organized_stats2
+
+        # generate csv
+        stats_df = self._format_data(organized_stats, stat_names=stat_names)
+        storage["stats_df"] = stats_df
+
+        stats_df2 = self._format_data(organized_stats2, stat_names=stat_names)
+        storage["stats_df2"] = stats_df2
+
+        # add track id information for each object
+        stats_df = self._update_track_id_info(surface_id, stats_df)
+        storage["final_df"] = stats_df
+
+        stats_df2 = self._update_track_id_info(surface_id, stats_df2)
+        storage["final_df2"] = stats_df2
+
+        return storage
+
+
+#################################################################################################
+#################################################################################################

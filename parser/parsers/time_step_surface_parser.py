@@ -49,6 +49,9 @@ class TimeStepSurfaceParserDistributed(Parser):
         del self.ims
         gc.collect()
 
+        # new addition
+        self.filename = os.path.basename(ims_file_path).split(".")[0]
+
     def _configure_instance(self, surface_id: int) -> None:
         """
         Extracts relevant information from ims object and

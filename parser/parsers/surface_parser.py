@@ -248,6 +248,7 @@ class SurfaceParserDistributed(Parser):
                 channel = channel_info[channel_info["ID_List"] == factor_id][
                     "Level"
                 ].item()
+                name = "_".join(name.split(" "))  # new
                 return f"{name} Channel_{channel}"
             # if factor id is not in the channel list no channel info is needed
             else:
@@ -292,6 +293,7 @@ class SurfaceParserDistributed(Parser):
                 surface = surface_info[surface_info["ID_List"] == factor_id][
                     "Level"
                 ].item()
+                name = "_".join(name.split(" "))  # new
                 surface = f"{name}_{surface}"
                 return surface
             # if factor id is not in the channel list no channel info is needed

@@ -12,7 +12,7 @@ from imaris.imaris import ImarisDataObject
 ###########################################################################################
 ###########################################################################################
 # @ray.remote
-class TrackParserDistributed(Parser):
+class SurfaceParserDistributed(Parser):
     """
     Extracts Surface Level Information From Imaris File
 
@@ -50,8 +50,11 @@ class TrackParserDistributed(Parser):
 
     def _configure_instance(self, surface_id: int) -> None:
         """
-        Extracts relevant information from ims object and
+        * Extracts relevant information from ims object and
         instantiates it as instance variables for fast recall.
+
+        Args:
+            surface_id (int): specific surface id to extract info from. ZERO INDEXED
 
         Currently Extracts:
             - all the surface names -- List
@@ -59,23 +62,21 @@ class TrackParserDistributed(Parser):
             - all the stats values -- {id: pd.DataFrame}
             - all the factor info -- {id: pd.DataFrame}
         """
-        # TODO: check to ensure surfaces exist or raise error
         # extract all information and saves it as a instance var
-        if surface_id == -1:
-            # configure all available surfaces
+        if surface_id == -1:  # configure all available surfaces
             self.surface_names = self.ims.get_object_names("Surface")
         else:
             # grab the surface we care about
             self.surface_names = self.ims.get_object_names("Surface")
-            if (surface_id >= 0) and (surface_id <= len(self.surface_names)):
+            if (surface_id >= 0) and (surface_id < len(self.surface_names)):
                 self.surface_names = [self.surface_names[surface_id]]
-            elif surface_id > len(self.surface_names):
+            elif surface_id >= len(self.surface_names):
                 raise ValueError(
-                    f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
+                    f"surface_id {surface_id} exceeds number of surfaces available"
                 )
             else:
                 # some currently unknown error
-                raise NotImplementedError
+                raise NotImplementedError("currently unknown errror lol")
 
         # get all the stats names for every surface {surf_id: stats_name_df}
         self.stats_names = {
@@ -95,39 +96,11 @@ class TrackParserDistributed(Parser):
             for surface_id, surface_name in enumerate(self.surface_names)
         }
 
-        # get all the factor table info for every surface {surf_id: factor_df}
-        self.track_ids = {
-            surface_id: self.ims.get_track_ids(surface_name)
+        # get all the factor table info for every surface {surf_id: object_ids_series}
+        self.object_ids = {
+            surface_id: self.ims.get_object_ids(surface_name)
             for surface_id, surface_name in enumerate(self.surface_names)
         }
-
-        # get all track information for every surface
-        self.track_info = {
-            surface_id: self.ims.get_track_info(surface_name)
-            for surface_id, surface_name in enumerate(self.surface_names)
-        }
-
-    def _format_data(
-        self,
-        stats_values: Dict,
-        stat_names: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """_summary_
-
-        Args:
-            organized_stats (Dict): _description_
-
-        Returns:
-            pd.DataFrame: _description_
-        """
-        # create a dict that maps stat_id to stat_name
-        column_names_dict = dict(zip(stat_names["ID"], stat_names["Name"]))
-        dataframe = pd.DataFrame(stats_values).transpose()
-
-        # replaces id columns with respective stat name and add idx
-        dataframe = dataframe.rename(column_names_dict, axis=1)
-        dataframe["Track_ID"] = dataframe.index
-        return dataframe
 
     def _save_csv(
         self,
@@ -135,10 +108,14 @@ class TrackParserDistributed(Parser):
         save_dir: str,
         surface_id: int,
     ) -> None:
+        # TODO: instead of surface_id, see if we can insert the REAL surface name
+        # To do this we can grab all the surface names, and find the one that is missing
+        # as the current surface_id. because one is always missing from the factor list
+        # and the one that is missing is the name we want.
         # a function to write csv information to disk
         # get save_dir/original_filename.csv
         ims_filename = os.path.basename(self.ims_file_path).split(".")[0]
-        ims_filename = f"{ims_filename}_track_surface_{(surface_id + 1)}.csv"
+        ims_filename = f"{ims_filename}_surface_{(surface_id + 1)}.csv"
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
 
@@ -190,6 +167,7 @@ class TrackParserDistributed(Parser):
     def extract_and_save(self, surface_id: int, save_dir: str = None) -> None:
         # this function is the funtion that gets called externally
         # we can have this function as a ray method to help with distributed execution
+
         # check 1
         if (self.surface_id != -1) and (surface_id != 0):
             raise ValueError(
@@ -254,32 +232,46 @@ class TrackParserDistributed(Parser):
         storage["stat_names_raw"] = stat_names
         stat_values = self.stats_values.get(surface_id)
         storage["stat_values_raw"] = stat_values
-        track_id = self.track_ids.get(surface_id)
-        storage["track_id"] = track_id
+        object_id = self.object_ids.get(surface_id)
+        storage["object_id"] = object_id
         factor = self.factors.get(surface_id)
         storage["factor"] = factor
 
-        # update channel and surface names
+        # update channel names
         stat_names = self._update_channel_info_fast(
-            stats_names=stat_names, factor=factor
+            stats_names=deepcopy(stat_names),
+            factor=factor,
         )
-        storage["stat_names_channel_info"] = stat_names
+        storage["stat_names_channel_info_fast"] = deepcopy(stat_names)
+
+        # update surface names
         stat_names = self._update_surface_info_fast(
-            stats_names=stat_names, factor=factor
+            stats_names=deepcopy(stat_names),
+            factor=factor,
         )
-        storage["stat_names_surface_info"] = stat_names
+        storage["stat_names_surface_info_fast"] = deepcopy(stat_names)
 
         # filter stats values by object ids (ie: ignore info related to trackids)
         stat_values = self._filter_stats(
             stats_values=stat_values,
             filter_col_names=["ID_Object"],
-            filter_values=[track_id],
+            filter_values=[object_id],
         )
         storage["stat_values_filtered"] = stat_values
 
+        # create dict that maps stat id to name
+        stats_dict = dict(zip(stat_names["ID"], stat_names["Name"]))
+        storage["stats_dict"] = stats_dict
+
+        # keep only unique for display
+        available_stats_names = [
+            stats_dict[ids] for ids in stat_values["ID_StatisticsType"].unique()
+        ]
+        storage["available_stats_names"] = available_stats_names
+
         # organize stats value
         organized_stats = self._organize_stats_fast(stat_values)
-        storage["organized_stats"] = organized_stats
+        storage["organized_stats_fast"] = organized_stats
 
         # generate csv
         stats_df = self._format_data(organized_stats, stat_names=stat_names)

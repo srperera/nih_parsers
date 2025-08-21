@@ -9,12 +9,13 @@ from .parser_base import Parser
 from imaris.imaris import ImarisDataObject
 
 
-###########################################################################################
-###########################################################################################
+################################################################################################
+################################################################################################
 # @ray.remote
 class FilamentParserDistributed(Parser):
     """
-    Extracts Filament Level Information From Imaris File
+    Extracts Filament Level Information From Imaris File.
+    This class extracts all the individual objects contained in each filament.
 
     Args:
         Parser (ABCMeta): Parser Abstract Base Class
@@ -23,24 +24,24 @@ class FilamentParserDistributed(Parser):
     def __init__(
         self,
         ims_file_path: str,
-        surface_id: int = -1,
+        filament_id: int = -1,
         save_dir: str = None,
     ) -> None:
         """
         Args:
             * ims_file_path (str): path to .ims file
-            * surface_id (int, optional): specific surface id to extract info from. Defaults to -1.
+            * filament_id (int, optional): specific filament id to extract info from. Defaults to -1.
                 If none is provided it will default to -1 where we extract and save to memory info
-                from all surfaces. If running in parallel its better to specify the surface
+                from all filaments. If running in parallel its better to specify the filament
                 so we only extract and store limited amount of information.
             * save_dir (str, optional): directory to save csv to. Defaults to None.
         """
         # TODO set up such that we can pass in a path of stats the user wants and we filter final csv accordingly
         self.ims_file_path = ims_file_path
-        self.surface_id = surface_id
+        self.filament_id = filament_id
         self.save_dir = save_dir
         self.ims = ImarisDataObject(self.ims_file_path)
-        self._configure_instance(surface_id=surface_id)
+        self._configure_instance(filament_id=filament_id)
 
         del self.ims
         gc.collect()
@@ -48,97 +49,77 @@ class FilamentParserDistributed(Parser):
         # new addition
         self.filename = os.path.basename(ims_file_path).split(".")[0]
 
-    def _configure_instance(self, surface_id: int) -> None:
+    def _configure_instance(self, filament_id: int) -> None:
         """
-        Extracts relevant information from ims object and
+        * Extracts relevant information from ims object and
         instantiates it as instance variables for fast recall.
 
+        Args:
+            filament_id (int): specific filament id to extract info from. ZERO INDEXED
+
         Currently Extracts:
-            - all the surface names -- List
+            - all the filament names -- List
             - all the stats_names -- {id: pd.DataFrame}
             - all the stats values -- {id: pd.DataFrame}
             - all the factor info -- {id: pd.DataFrame}
         """
-        # TODO: check to ensure surfaces exist or raise error
         # extract all information and saves it as a instance var
-        if surface_id == -1:
-            # configure all available surfaces
-            self.surface_names = self.ims.get_object_names("Surface")
+        if filament_id == -1:
+            # configure all available filaments
+            self.filament_names = self.ims.get_object_names("Filament")
         else:
-            # grab the surface we care about
-            self.surface_names = self.ims.get_object_names("Surface")
-            if (surface_id >= 0) and (surface_id <= len(self.surface_names)):
-                self.surface_names = [self.surface_names[surface_id]]
-            elif surface_id > len(self.surface_names):
+            # grab the filament we care about,
+            self.filament_names = self.ims.get_object_names("Filament")
+            if (filament_id >= 0) and (filament_id < len(self.filament_names)):
+                self.filament_names = [self.filament_names[filament_id]]
+            elif filament_id >= len(self.filament_names):
                 raise ValueError(
-                    f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
+                    f"filament_id {filament_id} exceeds number of filaments available"
                 )
             else:
                 # some currently unknown error
                 raise NotImplementedError
 
-        # get all the stats names for every surface {surf_id: stats_name_df}
+        assert type(self.filament_names) == list, "filament_names should be a list"
+
+        # get all the stats names for every filament {surf_id: stats_name_df}
         self.stats_names = {
-            surface_id: self.ims.get_stats_names(surface_name)
-            for surface_id, surface_name in enumerate(self.surface_names)
+            filament_id: self.ims.get_stats_names(filament_name)
+            for filament_id, filament_name in enumerate(self.filament_names)
         }
 
-        # get all the stats values for every surface {surf_id: stats_values_df}
+        # get all the stats values for every filament {surf_id: stats_values_df}
         self.stats_values = {
-            surface_id: self.ims.get_stats_values(surface_name)
-            for surface_id, surface_name in enumerate(self.surface_names)
+            filament_id: self.ims.get_stats_values(filament_name)
+            for filament_id, filament_name in enumerate(self.filament_names)
         }
 
-        # get all the factor table info for every surface {surf_id: factor_df}
+        # get all the factor table info for every filament {surf_id: factor_df}
         self.factors = {
-            surface_id: self.ims.get_object_factor(surface_name)
-            for surface_id, surface_name in enumerate(self.surface_names)
+            filament_id: self.ims.get_object_factor(filament_name)
+            for filament_id, filament_name in enumerate(self.filament_names)
         }
 
-        # get all the factor table info for every surface {surf_id: factor_df}
-        self.track_ids = {
-            surface_id: self.ims.get_track_ids(surface_name)
-            for surface_id, surface_name in enumerate(self.surface_names)
+        # get all the factor table info for every filament {surf_id: factor_df}
+        self.object_ids = {
+            filament_id: self.ims.get_object_ids(filament_name)
+            for filament_id, filament_name in enumerate(self.filament_names)
         }
-
-        # get all track information for every surface
-        self.track_info = {
-            surface_id: self.ims.get_track_info(surface_name)
-            for surface_id, surface_name in enumerate(self.surface_names)
-        }
-
-    def _format_data(
-        self,
-        stats_values: Dict,
-        stat_names: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """_summary_
-
-        Args:
-            organized_stats (Dict): _description_
-
-        Returns:
-            pd.DataFrame: _description_
-        """
-        # create a dict that maps stat_id to stat_name
-        column_names_dict = dict(zip(stat_names["ID"], stat_names["Name"]))
-        dataframe = pd.DataFrame(stats_values).transpose()
-
-        # replaces id columns with respective stat name and add idx
-        dataframe = dataframe.rename(column_names_dict, axis=1)
-        dataframe["Track_ID"] = dataframe.index
-        return dataframe
 
     def _save_csv(
         self,
         dataframe: pd.DataFrame,
         save_dir: str,
-        surface_id: int,
+        filament_id: int,
     ) -> None:
+        # TODO: instead of filament_id, see if we can insert the REAL filament name
+        # To do this we can grab all the filament names, and find the one that is missing
+        # as the current filament_id. because one is always missing from the factor list
+        # and the one that is missing is the name we want.
         # a function to write csv information to disk
         # get save_dir/original_filename.csv
         ims_filename = os.path.basename(self.ims_file_path).split(".")[0]
-        ims_filename = f"{ims_filename}_track_surface_{(surface_id + 1)}.csv"
+        ims_filename = f"{ims_filename}_filament_{(filament_id + 1)}.csv"
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
 
@@ -187,41 +168,45 @@ class FilamentParserDistributed(Parser):
 
         return stats_df
 
-    def extract_and_save(self, surface_id: int, save_dir: str = None) -> None:
+    def extract_and_save(self, filament_id: int, save_dir: str = None) -> None:
         # this function is the funtion that gets called externally
         # we can have this function as a ray method to help with distributed execution
+        # self._configure_instance(filament_id=filament_id)
+        # del self.ims
+        # gc.collect()
+
         # check 1
-        if (self.surface_id != -1) and (surface_id != 0):
+        if (self.filament_id != -1) and (filament_id != 0):
             raise ValueError(
-                f"class is initialized with 1 surface, surface_id should be set to 0"
+                f"class is initialized with 1 filament, filament_id should be set to 0"
             )
 
         # check 2
-        if surface_id > len(self.surface_names):
+        if filament_id > len(self.filament_names):
             raise ValueError(
-                f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
+                f"filament_id {filament_id} exceeds number of filaments available {len(self.filament_names)}"
             )
 
-        # process surface
-        dataframe = self._process(surface_id)
+        # process filament
+        dataframe = self._process(filament_id)
 
-        # adjust surface_id based on init mode
-        # save surface
+        # adjust filament_id based on init mode
+        # save filament
         save_dir = save_dir if save_dir else self.save_dir
-        if self.surface_id == -1:
-            self._save_csv(dataframe, save_dir, surface_id=surface_id)
+        if self.filament_id == -1:
+            self._save_csv(dataframe, save_dir, filament_id=filament_id)
         else:
-            self._save_csv(dataframe, save_dir, surface_id=self.surface_id)
+            self._save_csv(dataframe, save_dir, filament_id=self.filament_id)
 
         print(f"[info] -- finished: {self.ims_filename}")
 
-    def inspect(self, surface_id: int) -> Dict:
+    def inspect(self, filament_id: int) -> Dict:
         """
-        Runs a single end to end parser pipeline on a single surface
+        Runs a single end to end parser pipeline on a single filament
         and returns all components as a dict.
         Steps:
-            - get stat names for a single surface
-            - get stat values for a single surface
+            - get stat names for a single filament
+            - get stat values for a single filament
             - filter stat values to keep only track ids
             - filter stats values to remove track level stat information
             - rename certian columns (if needed)(need a custom func for this to add channel info)
@@ -230,50 +215,62 @@ class FilamentParserDistributed(Parser):
             - save csv
 
         Args:
-            surface_id (int): _description_
+            filament_id (int): _description_
         """
         # check 1
-        if (self.surface_id != -1) and (surface_id != 0):
+        if (self.filament_id != -1) and (filament_id != 0):
             raise ValueError(
-                f"class is initialized with 1 surface, surface_id should be set to 0"
+                f"class is initialized with 1 filament, filament_id should be set to 0"
             )
 
         # check 2
-        if surface_id > len(self.surface_names):
+        if filament_id > len(self.filament_names):
             raise ValueError(
-                f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
+                f"filament_id {filament_id} exceeds number of filaments available {len(self.filament_names)}"
             )
 
         # dict to hold all values to be returned for inspection
         storage = {}
 
-        # gather info for current surface
-        surface_name = self.surface_names[surface_id]
-        storage["surface_name"] = surface_name
-        stat_names = self.stats_names.get(surface_id)
-        storage["stat_names_raw"] = stat_names
-        stat_values = self.stats_values.get(surface_id)
+        # gather info for current filament
+        filament_name = self.filament_names[filament_id]
+        storage["filament_name"] = filament_name
+        stat_names = self.stats_names.get(filament_id)
+        storage["stat_names_raw"] = deepcopy(stat_names)
+        stat_values = self.stats_values.get(filament_id)
         storage["stat_values_raw"] = stat_values
-        track_id = self.track_ids.get(surface_id)
-        storage["track_id"] = track_id
-        factor = self.factors.get(surface_id)
+        object_id = self.object_ids.get(filament_id)
+        storage["object_id"] = object_id
+        factor = self.factors.get(filament_id)
         storage["factor"] = factor
 
-        # update channel and surface names
+        # update channel information
         stat_names = self._update_channel_info_fast(
             stats_names=stat_names, factor=factor
         )
         storage["stat_names_channel_info"] = stat_names
-        stat_names = self._update_surface_info_fast(
+
+        # update image level information
+        stat_names = self._update_image_level_info_fast(
             stats_names=stat_names, factor=factor
         )
-        storage["stat_names_surface_info"] = stat_names
+        storage["stat_names_image_info"] = stat_names
+
+        # update image depth level information
+        stat_names = self._update_depth_level_info_fast(
+            stats_names=stat_names, factor=factor
+        )
+        storage["stat_names_depth_info"] = stat_names
+
+        # update level information
+        stat_names = self._update_level_info_fast(stats_names=stat_names, factor=factor)
+        storage["stat_names_filament_info"] = stat_names
 
         # filter stats values by object ids (ie: ignore info related to trackids)
         stat_values = self._filter_stats(
             stats_values=stat_values,
             filter_col_names=["ID_Object"],
-            filter_values=[track_id],
+            filter_values=[object_id],
         )
         storage["stat_values_filtered"] = stat_values
 
@@ -288,5 +285,5 @@ class FilamentParserDistributed(Parser):
         return storage
 
 
-###########################################################################################
-###########################################################################################
+################################################################################################
+################################################################################################

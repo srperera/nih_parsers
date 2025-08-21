@@ -12,10 +12,11 @@ import time
 
 ###########################################################################################
 ###########################################################################################
-# @ray.remote
-class SpotParserDistributed(Parser):
+@ray.remote
+class SpotTrackObjectParserDistributed(Parser):
     """
-    Extracts Spot Level Information From Imaris File
+    Extracts all the individual cells or spots in a given Spot Track.
+    This class does not extract track level information just the individual objects that belong to each Spot Track.
 
     Args:
         Parser (ABCMeta): Parser Abstract Base Class
@@ -104,17 +105,23 @@ class SpotParserDistributed(Parser):
         }
 
         # get all the track object id information for every spot {surf_id: object_ids_series}
-        self.object_ids = {
-            spot_id: self.ims.get_track_object_ids(spot_name)
-            for spot_id, spot_name in enumerate(self.spot_names)
-        }
+        # self.object_ids = {
+        #     spot_id: self.ims.get_track_object_ids(spot_name)
+        #     for spot_id, spot_name in enumerate(self.spot_names)
+        # }
+        self.object_ids = {}
+        for spot_id, spot_name in enumerate(self.spot_names):
+            if self.ims.contains_tracks(spot_name):
+                self.object_ids[spot_id] = self.ims.get_track_object_ids(spot_name)
+            else:
+                self.object_ids[spot_id] = self.ims.get_object_ids(spot_name)
 
         # get all object information for every spot {spot_id: object_info_df}
         # TODO: Redundant - get_track_object_info and get_track_object_id is the same
-        self.object_info = {
-            spot_id: self.ims.get_track_object_info(spot_name)
-            for spot_id, spot_name in enumerate(self.spot_names)
-        }
+        # self.object_info = {
+        #     spot_id: self.ims.get_track_object_info(spot_name)
+        #     for spot_id, spot_name in enumerate(self.spot_names)
+        # }
 
     def _save_csv(
         self,
@@ -125,7 +132,7 @@ class SpotParserDistributed(Parser):
         # a function to write csv information to disk
         # get save_dir/original_filename.csv
         ims_filename = os.path.basename(self.ims_file_path).split(".")[0]
-        ims_filename = f"{ims_filename}_spot_wtrack_{(spot_id + 1)}.csv"
+        ims_filename = f"{ims_filename}_spot_track_objects_{(spot_id + 1)}.csv"
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
 
@@ -156,7 +163,9 @@ class SpotParserDistributed(Parser):
         factor = self.factors.get(spot_id)
 
         # update channel and spot names
-        stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
+        stat_names = self._update_channel_info_fast(
+            stats_names=stat_names, factor=factor
+        )
 
         # filter stats values by object ids (ie: ignore info related to trackids)
         stat_values = self._filter_stats(
@@ -165,14 +174,15 @@ class SpotParserDistributed(Parser):
             filter_values=[object_id],
         )
 
-        # organize stats value (most compute used here)
-        organized_stats = self._organize_stats2(stat_values)
+        # organize stats value
+        organized_stats = self._organize_stats_fast(stat_values)
 
         # generate csv
         stats_df = self._format_data(organized_stats, stat_names=stat_names)
 
         # add track id information for each object
-        stats_df = self._update_track_id_info(spot_id, stats_df)
+        if self.track_ids[spot_id] is not None:
+            stats_df = self._update_track_id_info(spot_id, stats_df)
 
         return stats_df
 
@@ -254,6 +264,7 @@ class SpotParserDistributed(Parser):
             stats_names=deepcopy(stat_names),
             factor=factor,
         )
+        print(stat_names.shape, object_id.shape)
         print(f"time: {time.perf_counter() - start}")
         storage["stat_names_channel_info_fast"] = deepcopy(stat_names)
 
@@ -286,10 +297,11 @@ class SpotParserDistributed(Parser):
         storage["stats_df"] = stats_df
 
         # add track id information for each object
-        start = time.perf_counter()
-        stats_df = self._update_track_id_info(spot_id, stats_df)
-        print(f"time update track info: {time.perf_counter() - start}")
-        storage["final_df"] = stats_df
+        if self.track_ids[spot_id] is not None:
+            start = time.perf_counter()
+            stats_df = self._update_track_id_info(spot_id, stats_df)
+            print(f"time update track info: {time.perf_counter() - start}")
+            storage["final_df"] = stats_df
 
         return storage
 

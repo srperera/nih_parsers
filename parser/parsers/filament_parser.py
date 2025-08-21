@@ -628,15 +628,15 @@ class FilamentParserDistributed(Parser):
         organized_stats = self._organize_stats(stat_values)
         storage["organized_stats"] = organized_stats
 
-        organized_stats2 = self._organize_stats_fast(stat_values)
-        storage["organized_stats2"] = organized_stats2
+        # organized_stats2 = self._organize_stats_fast(stat_values)
+        # storage["organized_stats2"] = organized_stats2
 
         # generate csv
         stats_df = self._format_data(organized_stats, stat_names=stat_names)
         storage["final_df"] = stats_df
 
-        stats_df2 = self._format_data(organized_stats2, stat_names=stat_names)
-        storage["final_df2"] = stats_df2
+        # stats_df2 = self._format_data(organized_stats2, stat_names=stat_names)
+        # storage["final_df2"] = stats_df2
 
         return storage
 

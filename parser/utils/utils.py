@@ -173,15 +173,14 @@ def run_ray_actors(actors: List, cpu_cores: int):
         splits = np.array_split(np.asarray(actors, dtype=object), num_splits)
         for split in splits:
             tasks = [
-                actor.extract_and_save.remote(surface_id=0)
+                actor.extract_and_save.remote(spot_id=0)
                 for _, actor in enumerate(split)
             ]
             ready_tasks, _ = ray.wait(tasks, num_returns=len(tasks))
             results = ray.get(ready_tasks)
     else:
         tasks = [
-            actor.extract_and_save.remote(surface_id=0)
-            for _, actor in enumerate(actors)
+            actor.extract_and_save.remote(spot_id=0) for _, actor in enumerate(actors)
         ]
         ready_tasks, _ = ray.wait(tasks, num_returns=len(tasks))
         results = ray.get(ready_tasks)
@@ -227,3 +226,59 @@ def run_ray_actors_2(actors: List, cpu_cores: int):
     else:
         for actor in split:
             actor.extract_and_save(surface_id=0)
+
+
+#########################################################################################
+def get_valid_spot_objects(data_path: str) -> List[int]:
+    """
+    Returns a list of points that contains points/spot stats
+    because some points might not contain statistics.
+
+    Args:
+        data_path (str): path to imaris file.
+
+    Returns:
+        List: _description_
+
+    *** WORKING V2
+    """
+    ims_obj = ImarisDataObject(data_path)
+    points_names = ims_obj.get_object_names("Points")
+    valid_points = []
+    for idx, point in enumerate(points_names):
+        valid_point = ims_obj.contains_points(point)
+        if valid_point:
+            valid_points.append(idx)
+            print(f"[info] -- points id: {idx} -- points: {point} -- Valid")
+        else:
+            print(f"[info] -- points id: {idx} -- points: {point} -- Invalid Skipping")
+
+    return valid_points
+
+
+#########################################################################################
+def get_valid_spot_tracks(data_path: str) -> List[int]:
+    """
+    Returns a list of points that contains points/spot stats
+    because some points might not contain statistics.
+
+    Args:
+        data_path (str): path to imaris file.
+
+    Returns:
+        List: _description_
+
+    *** WORKING V2
+    """
+    ims_obj = ImarisDataObject(data_path)
+    points_names = ims_obj.get_object_names("Points")
+    valid_points = []
+    for idx, point in enumerate(points_names):
+        valid_point = ims_obj.contains_tracks(point)
+        if valid_point:
+            valid_points.append(idx)
+            print(f"[info] -- points id: {idx} -- points: {point} -- Valid")
+        else:
+            print(f"[info] -- points id: {idx} -- points: {point} -- Invalid Skipping")
+
+    return valid_points

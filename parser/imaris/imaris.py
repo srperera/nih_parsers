@@ -47,22 +47,30 @@ class ImarisDataObject:
         Returns:
             list: a list of all the object names that match search_for parameter
         """
-        try:
-            values = self.data.get("Scene8").get("Content").keys()
-            storage = list()
-            for item in values:
-                if len(re.findall(object_name, item)):
-                    storage.append(item)
+        # the types of objects parser currently supports
+        supported_types = ["Surface", "Points", "Filaments"]
+
+        # get all the items that match object_name
+        values = self.data.get("Scene8").get("Content").keys()
+        storage = []
+        for item in values:
+            if len(re.findall(object_name, item)):
+                storage.append(item)
+
+        # catch any errors if the user requests a invalid item
+        # OR return list with items.
+        if len(storage) == 0 and object_name == "Surface":
+            raise NoSurfaceException
+        elif len(storage) == 0 and object_name == "Points":
+            raise NoPointsException
+        elif len(storage) == 0 and object_name == "Filaments":
+            raise NoFilamentsException
+        elif object_name not in supported_types:
+            raise NotImplementedError(
+                f"Parser does not support {object_name}. Supported Types {supported_types}"
+            )
+        else:
             return storage
-        except AttributeError:
-            if object_name == "Surface":
-                raise NoSurfaceException
-            elif object_name == "Points":
-                raise NoPointsException
-            elif object_name == "Filaments":
-                raise NoFilamentsException
-            else:
-                raise NotImplementedError(f"Parser does not support {object_name}")
 
     def get_stats_names(self, object_name: str) -> pd.DataFrame:
         """
@@ -320,6 +328,29 @@ class ImarisDataObject:
 
         # checks to ensure surface data has objects within it
         if (filament_data is not None) and (filament_data.shape[0] > 0):
+            return True
+        else:
+            return False
+
+    def contains_points(self, object_name: str) -> bool:
+        """
+        Given a object name ie: Points0 returns True if points data exists else False
+
+        Args:
+            object_name (str): _description_
+
+        Returns:
+            bool: _description_
+        """
+        points_data = (
+            self.data.get("Scene8")
+            .get("Content")
+            .get(object_name)
+            .get("StatisticsValue")
+        )
+
+        # checks to ensure surface data has objects within it
+        if (points_data is not None) and (points_data.shape[0] > 0):
             return True
         else:
             return False

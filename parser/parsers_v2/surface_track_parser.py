@@ -1,32 +1,23 @@
 import gc
 import os
 import ray
-import numpy as np
 import pandas as pd
 from copy import deepcopy
 from functools import partial
 from typing import Dict, List
-
 from .parser_base import Parser
 from imaris.imaris import ImarisDataObject
 
-# Notes:
-"""
-* if init surface_id = -1 it will load all surfaces into memory
-    * we can use a int surface_id value in extract or inspect to access info
-    
-* if init surface_id is given a specific value, it will only load that one surface info to memory
-    * we have to use int surface_id = 0 in extract or inspect to access the corressponding data
-    
-* above two steps are done to help improve memory allocation during parallel execution.
-"""
 
-
-#############################################################################
+###########################################################################################
+###########################################################################################
 # @ray.remote
-class TimeStepSurfaceParserDistributed(Parser):
+class TrackParserDistributed(Parser):
     """
-    Extracts Surface Level Information From Imaris File
+    Extracts Surface Track Level Information From Imaris File.
+    This class exacts all the track level information for a given Surface with Tracks.
+    This class does not extract individual objects that belong to a Surface Track.
+    If individual object statistics are needed please use surface_track_object_id_parser.py
 
     Args:
         Parser (ABCMeta): Parser Abstract Base Class
@@ -36,14 +27,21 @@ class TimeStepSurfaceParserDistributed(Parser):
         self,
         ims_file_path: str,
         surface_id: int = -1,
-        time_step: float = 1.0,
         save_dir: str = None,
     ) -> None:
+        """
+        Args:
+            * ims_file_path (str): path to .ims file
+            * surface_id (int, optional): specific surface id to extract info from. Defaults to -1.
+                If none is provided it will default to -1 where we extract and save to memory info
+                from all surfaces. If running in parallel its better to specify the surface
+                so we only extract and store limited amount of information.
+            * save_dir (str, optional): directory to save csv to. Defaults to None.
+        """
         # TODO set up such that we can pass in a path of stats the user wants and we filter final csv accordingly
         self.ims_file_path = ims_file_path
         self.surface_id = surface_id
         self.save_dir = save_dir
-        self.time_step = time_step
         self.ims = ImarisDataObject(self.ims_file_path)
         self._configure_instance(surface_id=surface_id)
 
@@ -80,7 +78,7 @@ class TimeStepSurfaceParserDistributed(Parser):
                 )
             else:
                 # some currently unknown error
-                raise NotImplementedError("currently unknown errror lol")
+                raise NotImplementedError
 
         # get all the stats names for every surface {surf_id: stats_name_df}
         self.stats_names = {
@@ -101,46 +99,16 @@ class TimeStepSurfaceParserDistributed(Parser):
         }
 
         # get all the factor table info for every surface {surf_id: factor_df}
-        self.object_ids = {
-            surface_id: self.ims.get_object_ids(surface_name)
+        self.track_ids = {
+            surface_id: self.ims.get_track_ids(surface_name)
             for surface_id, surface_name in enumerate(self.surface_names)
         }
 
-    def _organize_stats(self, stats_values: pd.DataFrame) -> Dict:
-        """Organized the data such that it looks like
-        {ID_Object: {Stats Name: Value}}
-
-        Args:
-            surface_stats_values (pd.DataFrame): a single dataframe
-            that contains the statistics for a single surface
-
-        Returns:
-            Dict: _description_
-        """
-        grouped_stats = (
-            stats_values.groupby("ID_Object")[["ID_StatisticsType", "Value"]]
-            .apply(lambda x: x.set_index("ID_StatisticsType").to_dict(orient="dict"))
-            .to_dict()
-        )
-        grouped_stats = {k: v["Value"] for k, v in grouped_stats.items()}
-        return grouped_stats
-
-    def _organize_stats_fast(self, stats_values: pd.DataFrame) -> Dict:
-        """Organized the data such that it looks like
-        {ID_Object: {Stats Name: Value}}
-
-        Args:
-            stats_values (pd.DataFrame): a single dataframe
-            that contains the statistics for a single spot
-
-        Returns:
-            Dict: _description_
-        """
-        grouped_stats = {
-            obj_id: dict(zip(sub.ID_StatisticsType, sub.Value))
-            for obj_id, sub in stats_values.groupby("ID_Object")
+        # get all track information for every surface
+        self.track_info = {
+            surface_id: self.ims.get_track_info(surface_name)
+            for surface_id, surface_name in enumerate(self.surface_names)
         }
-        return grouped_stats
 
     def _format_data(
         self,
@@ -161,7 +129,7 @@ class TimeStepSurfaceParserDistributed(Parser):
 
         # replaces id columns with respective stat name and add idx
         dataframe = dataframe.rename(column_names_dict, axis=1)
-        dataframe["Object_ID"] = dataframe.index
+        dataframe["Track_ID"] = dataframe.index
         return dataframe
 
     def _save_csv(
@@ -173,136 +141,12 @@ class TimeStepSurfaceParserDistributed(Parser):
         # a function to write csv information to disk
         # get save_dir/original_filename.csv
         ims_filename = os.path.basename(self.ims_file_path).split(".")[0]
-        ims_filename = (
-            f"{ims_filename}_surface_{(surface_id + 1)}_timestep_{self.time_step}.csv"
-        )
+        ims_filename = f"{ims_filename}_track_surface_{(surface_id + 1)}.csv"
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
 
         # store ims_filename
         self.ims_filename = ims_filename
-
-    def _filter_stats(
-        self,
-        stats_values: pd.DataFrame,
-        filter_col_names: List[str],
-        filter_values: List[pd.Series],
-    ) -> pd.DataFrame:
-        """
-        Filters the stats values dataframe. It keeps information
-        from col_names and filter_values that is passed in as arguments.
-        For time step parser, we need to return all the stats for objects
-        in a surface that belong to a particular time index.
-
-        Args:
-            stats_values (pd.DataFrame): _description_
-            filter_col_name (str): name of the column we want to use to filter
-            filter_values (str): values that we want to keep
-
-        Returns:
-            pd.DataFrame: _description_
-        """
-        # first filter stats values by object id
-        for col_names, values in zip(filter_col_names, filter_values):
-            stats_values = stats_values[stats_values[col_names].isin(values)]
-
-        # filter by time index
-        # NOT NEEDED
-        # stats_values_at_time_idx = stats_values[
-        #     stats_values["ID_Time"] == self.time_step
-        # ]
-
-        return stats_values
-
-    def _update_channel_info_fast(
-        self,
-        stats_names: pd.DataFrame,
-        factor: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """
-        Updates the channel information for the relavent rows
-        based on th ID_FactorList information in stats_names
-
-        Args:
-            stats_names (pd.DataFrame): _description_
-            factor (pd.DataFrame): _description_
-
-        Returns:
-            pd.DataFrame: _description_
-        """
-
-        channel_map = (
-            factor.loc[factor["Name"] == "Channel", ["ID_List", "Level"]]
-            .set_index("ID_List")["Level"]
-            .to_dict()
-        )
-
-        stats_names["Channel_Level"] = stats_names["ID_FactorList"].map(channel_map)
-
-        stats_names["Name"] = stats_names.apply(
-            lambda row: (
-                f"{row['Name']} Channel_{int(row['Channel_Level'])}"
-                if pd.notna(row["Channel_Level"])
-                else row["Name"]
-            ),
-            axis=1,
-        )
-
-        stats_names = stats_names.drop(columns="Channel_Level")
-
-        return stats_names
-
-    def _update_surface_info_fast(
-        self,
-        stats_names: pd.DataFrame,
-        factor: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """
-        Updates the channel information for the relavent rows
-        based on th ID_FactorList information in stats_names
-
-        Args:
-            stats_names (pd.DataFrame): _description_
-            factor (pd.DataFrame): _description_
-
-        Returns:
-            pd.DataFrame: _description_
-        """
-
-        # Build mapping from ID_List -> Level for Surfaces
-        surface_map = (
-            factor.loc[factor["Name"] == "Surfaces", ["ID_List", "Level"]]
-            .set_index("ID_List")["Level"]
-            .to_dict()
-        )
-
-        # Map surface levels to stats_names
-        stats_names["Surface_Level"] = stats_names["ID_FactorList"].map(surface_map)
-
-        # Update Name column: append surface level if exists
-        stats_names["Name"] = stats_names.apply(
-            lambda row: (
-                f"{row['Name']}_{row['Surface_Level']}"
-                if pd.notna(row["Surface_Level"])
-                else row["Name"]
-            ),
-            axis=1,
-        )
-
-        # Drop the helper column
-        stats_names = stats_names.drop(columns="Surface_Level")
-
-        return stats_names
-
-    def _drop_unwanted_stats(self):
-        """
-        Drops stats not contained in the user defined list of stats names
-        from the final csv before saving to disk.
-
-        Raises:
-            NotImplementedError: _description_
-        """
-        raise NotImplementedError
 
     def _process(self, surface_id: int) -> None:
         """
@@ -331,9 +175,7 @@ class TimeStepSurfaceParserDistributed(Parser):
         stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
         stat_names = self._update_surface_info(stats_names=stat_names, factor=factor)
 
-        # filter stats values by object ids and time index = time_step
-        time_index_id = stat_names[stat_names["Name"] == "Time Index"]["ID"]
-        time_index_id = time_index_id.iloc[0].item()
+        # filter stats values by object ids (ie: ignore info related to trackids)
         stat_values = self._filter_stats(
             stats_values=stat_values,
             filter_col_names=["ID_Object"],
@@ -341,7 +183,7 @@ class TimeStepSurfaceParserDistributed(Parser):
         )
 
         # organize stats value (most compute used here)
-        organized_stats = self._organize_stats(stat_values)
+        organized_stats = self._organize_stats_fast(stat_values)
 
         # generate csv
         stats_df = self._format_data(organized_stats, stat_names=stat_names)
@@ -411,81 +253,43 @@ class TimeStepSurfaceParserDistributed(Parser):
         # gather info for current surface
         surface_name = self.surface_names[surface_id]
         storage["surface_name"] = surface_name
-
         stat_names = self.stats_names.get(surface_id)
         storage["stat_names_raw"] = stat_names
-
         stat_values = self.stats_values.get(surface_id)
         storage["stat_values_raw"] = stat_values
-
-        object_id = self.object_ids.get(surface_id)
-        storage["object_id"] = object_id
-
+        track_id = self.track_ids.get(surface_id)
+        storage["track_id"] = track_id
         factor = self.factors.get(surface_id)
         storage["factor"] = factor
 
         # update channel and surface names
         stat_names = self._update_channel_info_fast(
-            stats_names=deepcopy(stat_names), factor=factor
+            stats_names=stat_names, factor=factor
         )
-        storage["stat_names_channel_info_fast"] = deepcopy(stat_names)
-
+        storage["stat_names_channel_info"] = stat_names
         stat_names = self._update_surface_info_fast(
-            stats_names=deepcopy(stat_names), factor=factor
+            stats_names=stat_names, factor=factor
         )
-        storage["stat_names_surface_info_fast"] = deepcopy(stat_names)
-
-        # filter stats values by object ids and time index = time_step
-        # here we are just trying to find the object ids that at time_step
-        time_index_id = stat_names[stat_names["Name"] == "Time Index"]["ID"]
-        time_index_id = time_index_id.iloc[0].item()
-        object_ids_at_timestep = self._filter_stats(
-            stats_values=deepcopy(stat_values),
-            filter_col_names=["ID_Object", "ID_StatisticsType", "Value"],
-            filter_values=[
-                object_id,
-                pd.Series([time_index_id]),
-                pd.Series([self.time_step]),
-            ],
-        )["ID_Object"]
-        storage["object_ids_at_timestep"] = object_ids_at_timestep
+        storage["stat_names_surface_info"] = stat_names
 
         # filter stats values by object ids (ie: ignore info related to trackids)
         stat_values = self._filter_stats(
             stats_values=stat_values,
             filter_col_names=["ID_Object"],
-            filter_values=[object_ids_at_timestep],
+            filter_values=[track_id],
         )
         storage["stat_values_filtered"] = stat_values
 
-        # create dict that maps stat id to name
-        stats_dict = dict(zip(stat_names["ID"], stat_names["Name"]))
-        storage["stats_dict"] = stats_dict
-
-        # keep only unique for display
-        available_stats_names = [
-            stats_dict[ids] for ids in stat_values["ID_StatisticsType"].unique()
-        ]
-        storage["available_stats_names"] = available_stats_names
-
-        # organize stats value (most compute used here)
+        # organize stats value
         organized_stats = self._organize_stats_fast(stat_values)
-        storage["organized_stats_fast"] = organized_stats
+        storage["organized_stats"] = organized_stats
 
         # generate csv
         stats_df = self._format_data(organized_stats, stat_names=stat_names)
         storage["final_df"] = stats_df
 
-        # add track id information for each object
-        #
-        # stats_df = self._update_track_id_info(surface_id, stats_df)
-        # print(f"get _update_track_id_info time: {time.perf_counter() - start}")
-        # storage["final_df"] = stats_df
-
-        # stats_df2 = self._update_track_id_info(surface_id, stats_df2)
-        # storage["final_df2"] = stats_df2
-
         return storage
 
 
-#############################################################################
+###########################################################################################
+###########################################################################################

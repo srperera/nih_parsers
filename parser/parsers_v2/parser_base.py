@@ -4,9 +4,9 @@ from typing import Dict, List
 from abc import ABC, abstractmethod
 
 
-##########################################################################
+################################################################################################
+################################################################################################
 class Parser(ABC):
-    # @abstractmethod
     def _organize_stats_fast(self, stats_values: pd.DataFrame) -> Dict:
         """Organized the data such that it looks like
         {ID_Object: {Stats Name: Value}}
@@ -24,7 +24,6 @@ class Parser(ABC):
         }
         return grouped_stats
 
-    # @abstractmethod
     def _format_data(
         self,
         stats_values: Dict,
@@ -47,7 +46,6 @@ class Parser(ABC):
         dataframe["Object_ID"] = dataframe.index
         return dataframe
 
-    # @abstractmethod
     def _filter_stats(
         self,
         stats_values: pd.DataFrame,
@@ -74,7 +72,6 @@ class Parser(ABC):
 
         return stats_values
 
-    # @abstractmethod
     def _update_channel_info_fast(
         self,
         stats_names: pd.DataFrame,
@@ -113,7 +110,6 @@ class Parser(ABC):
 
         return stats_names
 
-    # @abstractmethod
     def _update_surface_info_fast(
         self,
         stats_names: pd.DataFrame,
@@ -153,6 +149,132 @@ class Parser(ABC):
 
         # Drop the helper column
         stats_names = stats_names.drop(columns="Surface_Level")
+
+        return stats_names
+
+    def _update_image_level_info_fast(
+        self,
+        stats_names: pd.DataFrame,
+        factor: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """
+        Updates the channel information for the relavent rows
+        based on th ID_FactorList information in stats_names
+
+        Args:
+            stats_names (pd.DataFrame): _description_
+            factor (pd.DataFrame): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+
+        # Build mapping from ID_List -> Level for Surfaces
+        image_level_map = (
+            factor.loc[factor["Name"] == "Image", ["ID_List", "Level"]]
+            .set_index("ID_List")["Level"]
+            .to_dict()
+        )
+
+        # Map surface levels to stats_names
+        stats_names["Image_Level"] = stats_names["ID_FactorList"].map(image_level_map)
+
+        # Update Name column: append surface level if exists
+        stats_names["Name"] = stats_names.apply(
+            lambda row: (
+                f"{row['Name']} {row['Image_Level']}"
+                if pd.notna(row["Image_Level"])
+                else row["Name"]
+            ),
+            axis=1,
+        )
+
+        # Drop the helper column
+        stats_names = stats_names.drop(columns="Image_Level")
+
+        return stats_names
+
+    def _update_depth_level_info_fast(
+        self,
+        stats_names: pd.DataFrame,
+        factor: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """
+        Updates the channel information for the relavent rows
+        based on th ID_FactorList information in stats_names
+
+        Args:
+            stats_names (pd.DataFrame): _description_
+            factor (pd.DataFrame): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+
+        # Build mapping from ID_List -> Level for Surfaces
+        depth_level_map = (
+            factor.loc[factor["Name"] == "Depth", ["ID_List", "Level"]]
+            .set_index("ID_List")["Level"]
+            .to_dict()
+        )
+
+        # Map surface levels to stats_names
+        stats_names["Depth_Level"] = stats_names["ID_FactorList"].map(depth_level_map)
+
+        # Update Name column: append surface level if exists
+        stats_names["Name"] = stats_names.apply(
+            lambda row: (
+                f"{row['Name']} Depth_{int(row['Depth_Level'])}"
+                if pd.notna(row["Depth_Level"])
+                else row["Name"]
+            ),
+            axis=1,
+        )
+
+        # Drop the helper column
+        stats_names = stats_names.drop(columns="Depth_Level")
+
+        return stats_names
+
+    def _update_level_info_fast(
+        self,
+        stats_names: pd.DataFrame,
+        factor: pd.DataFrame,
+    ) -> pd.DataFrame:
+        """
+        Updates the channel information for the relavent rows
+        based on th ID_FactorList information in stats_names
+
+        Args:
+            stats_names (pd.DataFrame): _description_
+            factor (pd.DataFrame): _description_
+
+        Returns:
+            pd.DataFrame: _description_
+        """
+
+        # Build mapping from ID_List -> Level for Surfaces
+        level_map = (
+            factor.loc[factor["Name"] == "Level", ["ID_List", "Level"]]
+            .set_index("ID_List")["Level"]
+            .to_dict()
+        )
+
+        # Map surface levels to stats_names
+        stats_names["Level"] = stats_names["ID_FactorList"].map(level_map)
+
+        # Update Name column: append surface level if exists
+        stats_names["Name"] = stats_names.apply(
+            lambda row: (
+                f"{row['Name']} Level_{int(row['Level'])}"
+                if pd.notna(row["Level"])
+                else row["Name"]
+            ),
+            axis=1,
+        )
+
+        # Drop the helper column
+        stats_names = stats_names.drop(columns="Level")
 
         return stats_names
 
@@ -200,7 +322,6 @@ class Parser(ABC):
 
         return dataframe
 
-    # @abstractmethod
     def _drop_unwanted_stats(self):
         """
         Drops stats not contained in the user defined list of stats names
@@ -232,3 +353,7 @@ class Parser(ABC):
     @abstractmethod
     def extract_and_save(self):
         pass
+
+
+################################################################################################
+################################################################################################

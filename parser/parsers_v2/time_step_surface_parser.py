@@ -9,7 +9,6 @@ from typing import Dict, List
 
 from .parser_base import Parser
 from imaris.imaris import ImarisDataObject
-import time
 
 # Notes:
 """
@@ -215,50 +214,6 @@ class TimeStepSurfaceParserDistributed(Parser):
 
         return stats_values
 
-    def _update_channel_info(
-        self,
-        stats_names: pd.DataFrame,
-        factor: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """
-        Updates the channel information for the relavent rows
-        based on th ID_FactorList information in stats_names
-
-        Args:
-            stats_names (pd.DataFrame): _description_
-            factor (pd.DataFrame): _description_
-
-        Returns:
-            pd.DataFrame: _description_
-        """
-
-        # create function get channel number from a pandas row from stats_names
-        # inner func
-        def _get_channel_id(row_info, factor: pd.DataFrame):
-            factor_id = row_info["ID_FactorList"]  # factor id
-            name = row_info["Name"]  # stat name
-
-            # filter factor to only include items related to Channel
-            channel_info = factor[factor["Name"] == "Channel"]
-
-            # main logic to select the right channel given the factor id
-            if factor_id in channel_info["ID_List"].to_list():
-                channel = channel_info[channel_info["ID_List"] == factor_id][
-                    "Level"
-                ].item()
-                return f"{name} Channel_{channel}"
-            # if factor id is not in the channel list no channel info is needed
-            else:
-                return name
-
-        # create partial
-        get_channel_id_partial = partial(_get_channel_id, factor=factor)
-
-        # update stats name with the newly mapped stats names values
-        stats_names["Name"] = stats_names.apply(func=get_channel_id_partial, axis=1)
-
-        return stats_names
-
     def _update_channel_info_fast(
         self,
         stats_names: pd.DataFrame,
@@ -294,51 +249,6 @@ class TimeStepSurfaceParserDistributed(Parser):
         )
 
         stats_names = stats_names.drop(columns="Channel_Level")
-
-        return stats_names
-
-    def _update_surface_info(
-        self,
-        stats_names: pd.DataFrame,
-        factor: pd.DataFrame,
-    ) -> pd.DataFrame:
-        """
-        Updates the surface name information for the relavent rows
-        based on th ID_FactorList information in stats_names
-
-        Args:
-            stats_names (pd.DataFrame): _description_
-            factor (pd.DataFrame): _description_
-
-        Returns:
-            pd.DataFrame: _description_
-        """
-
-        # create function get channel number from a pandas row from stats_names
-        # inner func
-        def _get_surface_name(row_info, factor: pd.DataFrame):
-            factor_id = row_info["ID_FactorList"]  # factor id
-            name = row_info["Name"]  # stat name
-
-            # filter factor to only include items related to Channel
-            surface_info = factor[factor["Name"] == "Surfaces"]
-
-            # main logic to select the right channel given the factor id
-            if factor_id in surface_info["ID_List"].to_list():
-                surface = surface_info[surface_info["ID_List"] == factor_id][
-                    "Level"
-                ].item()
-                surface = f"{name}_{surface}"
-                return surface
-            # if factor id is not in the channel list no channel info is needed
-            else:
-                return name
-
-        # create partial
-        get_surface_name_partial = partial(_get_surface_name, factor=factor)
-
-        # update stats name with the newly mapped stats names values
-        stats_names["Name"] = stats_names.apply(func=get_surface_name_partial, axis=1)
 
         return stats_names
 
@@ -438,6 +348,34 @@ class TimeStepSurfaceParserDistributed(Parser):
 
         return stats_df
 
+    def extract_and_save(self, surface_id: int, save_dir: str = None) -> None:
+        # this function is the funtion that gets called externally
+        # we can have this function as a ray method to help with distributed execution
+        # check 1
+        if (self.surface_id != -1) and (surface_id != 0):
+            raise ValueError(
+                f"class is initialized with 1 surface, surface_id should be set to 0"
+            )
+
+        # check 2
+        if surface_id > len(self.surface_names):
+            raise ValueError(
+                f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
+            )
+
+        # process surface
+        dataframe = self._process(surface_id)
+
+        # adjust surface_id based on init mode
+        # save surface
+        save_dir = save_dir if save_dir else self.save_dir
+        if self.surface_id == -1:
+            self._save_csv(dataframe, save_dir, surface_id=surface_id)
+        else:
+            self._save_csv(dataframe, save_dir, surface_id=self.surface_id)
+
+        print(f"[info] -- finished: {self.ims_filename}")
+
     def inspect(self, surface_id: int) -> Dict:
         """
         Runs a single end to end parser pipeline on a single surface
@@ -487,15 +425,15 @@ class TimeStepSurfaceParserDistributed(Parser):
         storage["factor"] = factor
 
         # update channel and surface names
-        stat_names = self._update_channel_info(
+        stat_names = self._update_channel_info_fast(
             stats_names=deepcopy(stat_names), factor=factor
         )
-        storage["stat_names_channel_info"] = deepcopy(stat_names)
+        storage["stat_names_channel_info_fast"] = deepcopy(stat_names)
 
-        stat_names = self._update_surface_info(
+        stat_names = self._update_surface_info_fast(
             stats_names=deepcopy(stat_names), factor=factor
         )
-        storage["stat_names_surface_info"] = deepcopy(stat_names)
+        storage["stat_names_surface_info_fast"] = deepcopy(stat_names)
 
         # filter stats values by object ids and time index = time_step
         # here we are just trying to find the object ids that at time_step
@@ -520,16 +458,26 @@ class TimeStepSurfaceParserDistributed(Parser):
         )
         storage["stat_values_filtered"] = stat_values
 
+        # create dict that maps stat id to name
+        stats_dict = dict(zip(stat_names["ID"], stat_names["Name"]))
+        storage["stats_dict"] = stats_dict
+
+        # keep only unique for display
+        available_stats_names = [
+            stats_dict[ids] for ids in stat_values["ID_StatisticsType"].unique()
+        ]
+        storage["available_stats_names"] = available_stats_names
+
         # organize stats value (most compute used here)
-        organized_stats = self._organize_stats(stat_values)
-        storage["organized_stats"] = organized_stats
+        organized_stats = self._organize_stats_fast(stat_values)
+        storage["organized_stats_fast"] = organized_stats
 
         # generate csv
         stats_df = self._format_data(organized_stats, stat_names=stat_names)
         storage["final_df"] = stats_df
 
         # add track id information for each object
-        # start = time.perf_counter()
+        #
         # stats_df = self._update_track_id_info(surface_id, stats_df)
         # print(f"get _update_track_id_info time: {time.perf_counter() - start}")
         # storage["final_df"] = stats_df
@@ -538,92 +486,6 @@ class TimeStepSurfaceParserDistributed(Parser):
         # storage["final_df2"] = stats_df2
 
         return storage
-
-    def get_surface_stats_info(
-        self,
-        surface_id: int,
-    ) -> List[str]:
-        """Returns all the stats information in a given surface id
-
-        Args:
-            surface_id (int): _description_
-
-        Returns:
-            List[str]: _description_
-        """
-        # check 1
-        if (self.surface_id != -1) and (surface_id != 0):
-            raise ValueError(
-                f"class is initialized with 1 surface, surface_id should be set to 0 or None"
-            )
-
-        # check 2
-        if surface_id > len(self.surface_names):
-            raise ValueError(
-                f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
-            )
-
-        # gather info for current surface
-        surface_name = self.surface_names[surface_id]
-        stat_names = self.stats_names.get(surface_id)
-        stat_values = self.stats_values.get(surface_id)
-        track_id = self.object_ids.get(surface_id)
-        factor = self.factors.get(surface_id)
-
-        # update channel and surface names
-        stat_names = self.update_channel_info(stats_names=stat_names, factor=factor)
-        stat_names = self.update_surface_info(stats_names=stat_names, factor=factor)
-
-        # filter stats values by object ids and time index = time_step
-        time_index_id = stat_names[stat_names["Name"] == "Time Index"]["ID"]
-        time_index_id = time_index_id.iloc[0].item()
-        stat_values = self.filter_stats(
-            stats_values=stat_values,
-            filter_col_names=["ID_Object", "ID_StatisticsType", "Value"],
-            filter_values=[
-                track_id,
-                pd.Series([time_index_id]),
-                pd.Series([self.time_step]),
-            ],
-        )
-
-        # create dict that maps stat id to name
-        stats_dict = dict(zip(stat_names["ID"], stat_names["Name"]))
-
-        # keep only unique for display
-        available_stats_names = [
-            stats_dict[ids] for ids in stat_values["ID_StatisticsType"].unique()
-        ]
-
-        return stats_dict, available_stats_names
-
-    def extract_and_save(self, surface_id: int, save_dir: str = None) -> None:
-        # this function is the funtion that gets called externally
-        # we can have this function as a ray method to help with distributed execution
-        # check 1
-        if (self.surface_id != -1) and (surface_id != 0):
-            raise ValueError(
-                f"class is initialized with 1 surface, surface_id should be set to 0"
-            )
-
-        # check 2
-        if surface_id > len(self.surface_names):
-            raise ValueError(
-                f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
-            )
-
-        # process surface
-        dataframe = self._process(surface_id)
-
-        # adjust surface_id based on init mode
-        # save surface
-        save_dir = save_dir if save_dir else self.save_dir
-        if self.surface_id == -1:
-            self._save_csv(dataframe, save_dir, surface_id=surface_id)
-        else:
-            self._save_csv(dataframe, save_dir, surface_id=self.surface_id)
-
-        print(f"[info] -- finished: {self.ims_filename}")
 
 
 #############################################################################

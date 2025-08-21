@@ -219,7 +219,6 @@ class ImarisDataObject:
 
         # if there are track information filter those out
         if self.contains_tracks(object_name):
-            print("HERE")
             # get track ids
             track_ids = self.get_track_ids(object_name)
 
@@ -232,7 +231,7 @@ class ImarisDataObject:
         object_ids = stats_values[stats_values["ID_Time"] != -1]["ID_Object"].unique()
         object_ids = np.where(object_ids >= 0, object_ids, 0)
         object_ids = object_ids[np.nonzero(object_ids)[0]]
-        object_ids = pd.Series(object_ids)
+        object_ids = pd.Series(object_ids, name="ID_Object")
         if len(object_ids) > 0:
             return object_ids
         else:

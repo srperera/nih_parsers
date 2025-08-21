@@ -4,7 +4,7 @@ data_dir: [
 ]
 
 # File Path: Optional If You want to Run a single .ims File
-save_dir: ["results/spot_tracks/"]
+save_dir: ["results/spots/"]
 
 # Surface of Interest NOT ZERO INDEX ie: START WITH 1
 # If ALL surfaces are needed use valid_surfaces = -1

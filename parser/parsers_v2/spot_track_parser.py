@@ -164,6 +164,17 @@ class SpotTrackParserDistributed(Parser):
         Args:
             spot_id (int): _description_
         """
+        if (self.spot_id != -1) and (spot_id != 0):
+            raise ValueError(
+                f"class is initialized with 1 spot, spot_id should be set to 0"
+            )
+
+        # check 2
+        if spot_id > len(self.spot_names):
+            raise ValueError(
+                f"spot_id {spot_id} exceeds number of spots available {len(self.spot_names)}"
+            )
+
         # gather info for current spot
         spot_name = self.spot_names[spot_id]
         stat_names = self.stats_names.get(spot_id)
@@ -191,29 +202,19 @@ class SpotTrackParserDistributed(Parser):
 
         return stats_df
 
-    def extract_and_save(self, spot_id: int, save_dir: str = None) -> None:
+    def extract_and_save(self, idx: int, save_dir: str = None) -> None:
         # this function is the funtion that gets called externally
         # we can have this function as a ray method to help with distributed execution
         # check 1
-        if (self.spot_id != -1) and (spot_id != 0):
-            raise ValueError(
-                f"class is initialized with 1 spot, spot_id should be set to 0"
-            )
-
-        # check 2
-        if spot_id > len(self.spot_names):
-            raise ValueError(
-                f"spot_id {spot_id} exceeds number of spots available {len(self.spot_names)}"
-            )
 
         # process spot
-        dataframe = self._process(spot_id)
+        dataframe = self._process(spot_id=idx)
 
         # adjust spot_id based on init mode
         # save spot
         save_dir = save_dir if save_dir else self.save_dir
         if self.spot_id == -1:
-            self._save_csv(dataframe, save_dir, spot_id=spot_id)
+            self._save_csv(dataframe, save_dir, spot_id=idx)
         else:
             self._save_csv(dataframe, save_dir, spot_id=self.spot_id)
 

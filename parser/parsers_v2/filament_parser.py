@@ -188,33 +188,21 @@ class FilamentParserDistributed(Parser):
 
         return stats_df
 
-    def extract_and_save(self, filament_id: int, save_dir: str = None) -> None:
+    def extract_and_save(self, idx: int, save_dir: str = None) -> None:
         # this function is the funtion that gets called externally
         # we can have this function as a ray method to help with distributed execution
         # self._configure_instance(filament_id=filament_id)
         # del self.ims
         # gc.collect()
 
-        # check 1
-        if (self.filament_id != -1) and (filament_id != 0):
-            raise ValueError(
-                f"class is initialized with 1 filament, filament_id should be set to 0"
-            )
-
-        # check 2
-        if filament_id > len(self.filament_names):
-            raise ValueError(
-                f"filament_id {filament_id} exceeds number of filaments available {len(self.filament_names)}"
-            )
-
         # process filament
-        dataframe = self._process(filament_id)
+        dataframe = self._process(filament_id=idx)
 
         # adjust filament_id based on init mode
         # save filament
         save_dir = save_dir if save_dir else self.save_dir
         if self.filament_id == -1:
-            self._save_csv(dataframe, save_dir, filament_id=filament_id)
+            self._save_csv(dataframe, save_dir, filament_id=idx)
         else:
             self._save_csv(dataframe, save_dir, filament_id=self.filament_id)
 

@@ -174,11 +174,13 @@ def run_ray_actors(actors: List, cpu_cores: int):
         splits = np.array_split(np.asarray(actors, dtype=object), num_splits)
         for split in splits:
             # .remote(0) because we init each actor with one item. so 0 grabs that one item.
-            tasks = [actor.extract_and_save.remote(0) for _, actor in enumerate(split)]
+            tasks = [
+                actor.extract_and_save.remote(idx=0) for _, actor in enumerate(split)
+            ]
             ready_tasks, _ = ray.wait(tasks, num_returns=len(tasks))
             results = ray.get(ready_tasks)
     else:
-        tasks = [actor.extract_and_save.remote(0) for _, actor in enumerate(actors)]
+        tasks = [actor.extract_and_save.remote(idx=0) for _, actor in enumerate(actors)]
         ready_tasks, _ = ray.wait(tasks, num_returns=len(tasks))
         results = ray.get(ready_tasks)
 
@@ -312,3 +314,26 @@ def get_valid_filaments(data_path: str) -> List[int]:
             )
 
     return valid_filaments
+
+
+#########################################################################################
+#########################################################################################
+def run_ray_actors(actors: List, cpu_cores: int):
+    """V2 Working"""
+    # generate results
+    # split if too many actors vs cores else run all
+    if cpu_cores and cpu_cores < len(actors):
+        num_actors = len(actors)
+        num_splits = np.round(num_actors / cpu_cores)
+        splits = np.array_split(np.asarray(actors, dtype=object), num_splits)
+        for split in splits:
+            # .remote(0) because we init each actor with one item. so 0 grabs that one item.
+            tasks = [
+                actor.extract_and_save.remote(idx=0) for _, actor in enumerate(split)
+            ]
+            ready_tasks, _ = ray.wait(tasks, num_returns=len(tasks))
+            results = ray.get(ready_tasks)
+    else:
+        tasks = [actor.extract_and_save.remote(idx=0) for _, actor in enumerate(actors)]
+        ready_tasks, _ = ray.wait(tasks, num_returns=len(tasks))
+        results = ray.get(ready_tasks)

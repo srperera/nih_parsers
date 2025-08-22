@@ -29,3 +29,10 @@ spot track objects
 when we are looking for objects some objects can be there that belong to a track
 or sometimes there can be objects but they wont be connected with a track. 
 our system needs to handle this. an example is in spot_track_object_parser 
+
+# questions
+when we extract surface object information that is just objects that are created that does not belong to a track right?
+if we do this when we extract surface track objects what we are doing is from the same set of surface objects we are grabbing
+    only the ones that belong to track, but like in the spot track object parser if there is no tracks we are still grabbing the objects that dont belong to a track. is this right? should we be grabbing these items because they dont have track statistics.
+
+*** look at the the stats names for objects vs track_objects .. and see what the difference is **

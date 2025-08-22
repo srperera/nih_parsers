@@ -116,13 +116,6 @@ class SpotTrackObjectParserDistributed(Parser):
             else:
                 self.object_ids[spot_id] = self.ims.get_object_ids(spot_name)
 
-        # get all object information for every spot {spot_id: object_info_df}
-        # TODO: Redundant - get_track_object_info and get_track_object_id is the same
-        # self.object_info = {
-        #     spot_id: self.ims.get_track_object_info(spot_name)
-        #     for spot_id, spot_name in enumerate(self.spot_names)
-        # }
-
     def _save_csv(
         self,
         dataframe: pd.DataFrame,
@@ -293,6 +286,10 @@ class SpotTrackObjectParserDistributed(Parser):
             stats_df = self._update_track_id_info(spot_id, stats_df)
             print(f"time update track info: {time.perf_counter() - start}")
             storage["final_df"] = stats_df
+        else:
+            raise ValueError(
+                f"Spot ID: {spot_id} -- Spot Name: {spot_name} -- Contains No Tracks, Track ID Unavilable."
+            )
 
         return storage
 

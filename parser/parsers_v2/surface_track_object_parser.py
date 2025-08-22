@@ -1,6 +1,7 @@
 import gc
 import os
 import ray
+import time
 import pandas as pd
 from copy import deepcopy
 from functools import partial
@@ -12,7 +13,7 @@ from imaris.imaris import ImarisDataObject
 ###########################################################################################
 ###########################################################################################
 # @ray.remote
-class SurfaceParserDistributed(Parser):
+class SurfaceTrackObjectParserDistributed(Parser):
     """
     Extracts Surface Level Information From Imaris File
 
@@ -96,11 +97,24 @@ class SurfaceParserDistributed(Parser):
             for surface_id, surface_name in enumerate(self.surface_names)
         }
 
-        # get all the factor table info for every surface {surf_id: object_ids_series}
-        self.object_ids = {
-            surface_id: self.ims.get_object_ids(surface_name)
-            for surface_id, surface_name in enumerate(self.surface_names)
+        # gets all the track id information for every spot
+        self.track_ids = {
+            spot_id: self.ims.get_track_ids(spot_name)
+            for spot_id, spot_name in enumerate(self.spot_names)
         }
+
+        # get all object information for every spot
+        self.track_info = {
+            spot_id: self.ims.get_track_info(spot_name)
+            for spot_id, spot_name in enumerate(self.spot_names)
+        }
+
+        self.object_ids = {}
+        for spot_id, spot_name in enumerate(self.spot_names):
+            if self.ims.contains_tracks(spot_name):
+                self.object_ids[spot_id] = self.ims.get_track_object_ids(spot_name)
+            else:
+                self.object_ids[spot_id] = self.ims.get_object_ids(spot_name)
 
     def _save_csv(
         self,
@@ -115,7 +129,7 @@ class SurfaceParserDistributed(Parser):
         # a function to write csv information to disk
         # get save_dir/original_filename.csv
         ims_filename = os.path.basename(self.ims_file_path).split(".")[0]
-        ims_filename = f"{ims_filename}_surface_{(surface_id + 1)}.csv"
+        ims_filename = f"{ims_filename}_surface_track_object_{(surface_id + 1)}.csv"
         save_filepath = os.path.join(save_dir, ims_filename)
         dataframe.to_csv(save_filepath)
 
@@ -157,9 +171,11 @@ class SurfaceParserDistributed(Parser):
         object_id = self.object_ids.get(surface_id)
         factor = self.factors.get(surface_id)
 
-        # update channel and surface names
-        stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
-        stat_names = self._update_surface_info(stats_names=stat_names, factor=factor)
+        # update channel
+        stat_names = self._update_channel_info_fast(stat_names, factor)
+
+        # update surface names
+        stat_names = self._update_surface_info_fast(stat_names, factor)
 
         # filter stats values by object ids (ie: ignore info related to trackids)
         stat_values = self._filter_stats(
@@ -168,11 +184,14 @@ class SurfaceParserDistributed(Parser):
             filter_values=[object_id],
         )
 
-        # organize stats value (most compute used here)
+        # organize stats value
         organized_stats = self._organize_stats_fast(stat_values)
 
         # generate csv
         stats_df = self._format_data(organized_stats, stat_names=stat_names)
+
+        if self.track_ids[surface_id] is not None:
+            stats_df = self._update_track_id_info(surface_id, stats_df)
 
         return stats_df
 
@@ -276,6 +295,17 @@ class SurfaceParserDistributed(Parser):
         # generate csv
         stats_df = self._format_data(organized_stats, stat_names=stat_names)
         storage["final_df"] = stats_df
+
+        # add track id information for each object
+        if self.track_ids[surface_id] is not None:
+            start = time.perf_counter()
+            stats_df = self._update_track_id_info(surface_id, stats_df)
+            print(f"time update track info: {time.perf_counter() - start}")
+            storage["final_df"] = stats_df
+        else:
+            print(
+                f"Surface ID: {surface_id} -- Surface Name: {surface_name} -- Contains No Tracks, Track ID Unavilable."
+            )
 
         return storage
 

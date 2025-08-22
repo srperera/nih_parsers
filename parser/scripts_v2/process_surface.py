@@ -1,39 +1,42 @@
 import os
-import ray
 import glob
-import numpy as np
 from typing import List, Tuple
-from utils.utils import get_valid_spot_objects, run_ray_actors, get_valid_spot_tracks
-from parsers_v2.spot_track_parser import SpotTrackParserDistributed
-from parsers_v2.spot_track_object_parser import SpotTrackObjectParserDistributed
-from imaris.exceptions import NoPointsException
+from imaris.exceptions import NoSurfaceException
+from utils.utils import (
+    get_valid_surfaces,
+    run_ray_actors,
+    get_valid_surfaces_with_tracks,
+)
+from parsers_v2.surface_parser import SurfaceParserDistributed
+from parsers_v2.surface_track_parser import SurfaceTrackParserDistributed
+
 
 """
 Notes:
     available functions:
-        * run_spot_parser_parallel
-        * run_spot_parser_parallel_index
+        * run_surface_parser_parallel
+        * run_surface_parser_parallel_index
 
     We should do all the necessary checks before creating actors
-        *ie: check for valid spots, tracks etc
+        *ie: check for valid surfaces, tracks etc
         * makes everything cleaner
 """
 
 
 ###############################################################################################
 ###############################################################################################
-def run_spot_track_object_parser_parallel(
+def run_surface_parser_parallel(
     data_dirs: List[str],
     save_dirs: List[str],
     cpu_cores: int = None,
-    spot_ids: Tuple[int] = None,
+    surface_ids: Tuple[int] = None,
 ) -> None:
     """
-    Runs ALL spots in an ims file in parallel.
+    Runs ALL surfaces in an ims file in parallel.
     Pipeline:
         - For every file in every directory
         - Create a folder a with the same name as the filename inside save_dir provided
-        - For every spot inside each file we create a remote actor
+        - For every surface inside each file we create a remote actor
         - Once all actors are created we can use the cpu cores provided by user to
             run a fixed chunk of actors in parallel so we dont start too many instances at one
         - If no cpu_cores provided we will run all actors in parallel
@@ -42,11 +45,11 @@ def run_spot_track_object_parser_parallel(
         data_dirs (List[str]): _description_
         save_dirs (List[str]): _description_
         cpu_cores (int, optional): _description_. Defaults to None.
-        spot_ids (Tuple[int], optional): _description_. Defaults to None.
+        surface_ids (Tuple[int], optional): _description_. Defaults to None.
     """
-    if spot_ids:
-        assert isinstance(spot_ids, tuple), "spot_ids must be a tuple"
-        assert len(spot_ids) > 0, "spot_ids must not be empty"
+    if surface_ids:
+        assert isinstance(surface_ids, tuple), "surface_ids must be a tuple"
+        assert len(surface_ids) > 0, "surface_ids must not be empty"
 
     # zip data paths and save dirs
     data_paths = list(zip(data_dirs, save_dirs))
@@ -69,8 +72,8 @@ def run_spot_track_object_parser_parallel(
             run_summary[data_path] = "NO FILES IN FOLDER"
 
         # if there are .ims files in the directory
-        # there could be other .ims files like Surface, Filaments etc
-        # we must only load the ones we want for Spots.
+        # there could be other .ims files like Surface, surfaces etc
+        # we must only load the ones we want for surfaces.
         else:
             for file_path in imaris_files:
 
@@ -83,52 +86,52 @@ def run_spot_track_object_parser_parallel(
                 if not os.path.isdir(save_path):
                     os.makedirs(save_path)
 
-                # get num of valid spots
+                # get num of valid surfaces
                 # this try/except section is kind of a safty check
                 # only working files ie: files with data to parse should have actors created.
                 try:
-                    valid_spot_ids = get_valid_spot_objects(data_path=file_path)
+                    valid_surface_ids = get_valid_surfaces(data_path=file_path)
                     run_summary[data_path][filename][
-                        "all_spot_object_tracks"
-                    ] = valid_spot_ids
+                        "all_surface_objects"
+                    ] = valid_surface_ids
 
-                except NoPointsException:
-                    print(f"[info] -- file {filename} contains no spots .. skipping")
-                    run_summary[data_path][filename] = "NO spot TRACKS"
+                except NoSurfaceException:
+                    print(f"[info] -- file {filename} contains no surfaces .. skipping")
+                    run_summary[data_path][filename] = "No surfaces"
                     continue
 
-                # if spot_ids are provided, filter valid_spot_ids
-                if spot_ids:
-                    valid_spot_ids = list(
-                        filter(lambda x: (x + 1) in spot_ids, valid_spot_ids)
+                # if surface_ids are provided, filter valid_surface_ids
+                if surface_ids:
+                    valid_surface_ids = list(
+                        filter(lambda x: (x + 1) in surface_ids, valid_surface_ids)
                     )
 
                 # if finally no items are avialble display to user.
-                if len(valid_spot_ids) == 0:
-                    print(f"[info] -- no valid spots in {filename} .. skipping file")
+                if len(valid_surface_ids) == 0:
+                    print(f"[info] -- no valid surfaces in {filename} .. skipping file")
 
                 else:
                     print(
-                        f"[info] -- creating {len(valid_spot_ids)} actors for {filename}"
+                        f"[info] -- creating {len(valid_surface_ids)} actors for {filename}"
                     )
 
-                    # create actors for each spot in current imaris file
-                    run_summary[data_path][filename]["extracted_spot_tracks"] = []
-                    for idx in valid_spot_ids:
-                        actor = SpotTrackObjectParserDistributed.remote(
+                    # create actors for each surface in current imaris file
+                    run_summary[data_path][filename]["extracted_surfaces"] = []
+                    for idx in valid_surface_ids:
+                        actor = SurfaceParserDistributed.remote(
                             file_path,
-                            spot_id=idx,
+                            surface_id=idx,
                             save_dir=save_path,
                         )
                         actors.append(actor)
 
                         # update summary
-                        run_summary[data_path][filename][
-                            "extracted_spot_tracks"
-                        ].append(idx)
+                        run_summary[data_path][filename]["extracted_surfaces"].append(
+                            idx
+                        )
                     print("\n")
 
-            run_summary[data_path]["total spot tracks"] = len(actors)
+            run_summary[data_path]["total surfaces"] = len(actors)
 
         # generate results
         print(f"[info] -- found {len(actors)} actors")
@@ -140,18 +143,19 @@ def run_spot_track_object_parser_parallel(
 
 
 ###############################################################################################
-def run_spot_track_parser_parallel(
+###############################################################################################
+def run_surface_track_parser_parallel(
     data_dirs: List[str],
     save_dirs: List[str],
     cpu_cores: int = None,
-    spot_ids: Tuple[int] = None,
+    surface_ids: Tuple[int] = None,
 ) -> None:
     """
-    Runs ALL spots in an ims file in parallel.
+    Runs ALL surfaces in an ims file in parallel.
     Pipeline:
         - For every file in every directory
         - Create a folder a with the same name as the filename inside save_dir provided
-        - For every spot inside each file we create a remote actor
+        - For every surface inside each file we create a remote actor
         - Once all actors are created we can use the cpu cores provided by user to
             run a fixed chunk of actors in parallel so we dont start too many instances at one
         - If no cpu_cores provided we will run all actors in parallel
@@ -160,11 +164,11 @@ def run_spot_track_parser_parallel(
         data_dirs (List[str]): _description_
         save_dirs (List[str]): _description_
         cpu_cores (int, optional): _description_. Defaults to None.
-        spot_ids (Tuple[int], optional): _description_. Defaults to None.
+        surface_ids (Tuple[int], optional): _description_. Defaults to None.
     """
-    if spot_ids:
-        assert isinstance(spot_ids, tuple), "spot_ids must be a tuple"
-        assert len(spot_ids) > 0, "spot_ids must not be empty"
+    if surface_ids:
+        assert isinstance(surface_ids, tuple), "surface_ids must be a tuple"
+        assert len(surface_ids) > 0, "surface_ids must not be empty"
 
     # zip data paths and save dirs
     data_paths = list(zip(data_dirs, save_dirs))
@@ -187,8 +191,8 @@ def run_spot_track_parser_parallel(
             run_summary[data_path] = "NO FILES IN FOLDER"
 
         # if there are .ims files in the directory
-        # there could be other .ims files like Surface, Filaments etc
-        # we must only load the ones we want for Spots.
+        # there could be other .ims files like Surface, surfaces etc
+        # we must only load the ones we want for surfaces.
         else:
             for file_path in imaris_files:
 
@@ -201,52 +205,54 @@ def run_spot_track_parser_parallel(
                 if not os.path.isdir(save_path):
                     os.makedirs(save_path)
 
-                # get num of valid spots
+                # get num of valid surfaces
                 # this try/except section is kind of a safty check
                 # only working files ie: files with data to parse should have actors created.
                 try:
-                    valid_spot_ids = get_valid_spot_tracks(data_path=file_path)
-                    run_summary[data_path][filename]["all_spot_tracks"] = valid_spot_ids
-
-                except NoPointsException:
-                    print(
-                        f"[info] -- file {filename} contains no spots tracks.. skipping"
+                    valid_surface_ids = get_valid_surfaces_with_tracks(
+                        data_path=file_path
                     )
-                    run_summary[data_path][filename] = "No Spot TRACKS"
+                    run_summary[data_path][filename][
+                        "all_surface_track_objects"
+                    ] = valid_surface_ids
+
+                except NoSurfaceException:
+                    print(f"[info] -- file {filename} contains no surfaces .. skipping")
+                    run_summary[data_path][filename] = "No surfaces"
                     continue
 
-                # if spot_ids are provided, filter valid_spot_ids
-                if spot_ids:
-                    valid_spot_ids = list(
-                        filter(lambda x: (x + 1) in spot_ids, valid_spot_ids)
+                # if surface_ids are provided, filter valid_surface_ids
+                if surface_ids:
+                    valid_surface_ids = list(
+                        filter(lambda x: (x + 1) in surface_ids, valid_surface_ids)
                     )
 
                 # if finally no items are avialble display to user.
-                if len(valid_spot_ids) == 0:
-                    print(f"[info] -- no valid spots in {filename} .. skipping file")
+                if len(valid_surface_ids) == 0:
+                    print(f"[info] -- no valid surfaces in {filename} .. skipping file")
 
                 else:
                     print(
-                        f"[info] -- creating {len(valid_spot_ids)} actors for {filename}"
+                        f"[info] -- creating {len(valid_surface_ids)} actors for {filename}"
                     )
 
-                    # create actors for each spot in current imaris file
-                    run_summary[data_path][filename]["extracted_spot_tracks"] = []
-                    for idx in valid_spot_ids:
-                        actor = SpotTrackParserDistributed.remote(
+                    # create actors for each surface in current imaris file
+                    run_summary[data_path][filename]["extracted_surfaces"] = []
+                    for idx in valid_surface_ids:
+                        actor = SurfaceTrackParserDistributed.remote(
                             file_path,
-                            spot_id=idx,
+                            surface_id=idx,
                             save_dir=save_path,
                         )
                         actors.append(actor)
 
                         # update summary
-                        run_summary[data_path][filename][
-                            "extracted_spot_tracks"
-                        ].append(idx)
+                        run_summary[data_path][filename]["extracted_surfaces"].append(
+                            idx
+                        )
                     print("\n")
 
-            run_summary[data_path]["total spot tracks"] = len(actors)
+            run_summary[data_path]["total surfaces"] = len(actors)
 
         # generate results
         print(f"[info] -- found {len(actors)} actors")

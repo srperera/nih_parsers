@@ -11,8 +11,8 @@ from imaris.imaris import ImarisDataObject
 
 ###########################################################################################
 ###########################################################################################
-# @ray.remote
-class TrackParserDistributed(Parser):
+@ray.remote
+class SurfaceTrackParserDistributed(Parser):
     """
     Extracts Surface Track Level Information From Imaris File.
     This class exacts all the track level information for a given Surface with Tracks.
@@ -164,35 +164,6 @@ class TrackParserDistributed(Parser):
         Args:
             surface_id (int): _description_
         """
-        # gather info for current surface
-        surface_name = self.surface_names[surface_id]
-        stat_names = self.stats_names.get(surface_id)
-        stat_values = self.stats_values.get(surface_id)
-        object_id = self.object_ids.get(surface_id)
-        factor = self.factors.get(surface_id)
-
-        # update channel and surface names
-        stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
-        stat_names = self._update_surface_info(stats_names=stat_names, factor=factor)
-
-        # filter stats values by object ids (ie: ignore info related to trackids)
-        stat_values = self._filter_stats(
-            stats_values=stat_values,
-            filter_col_names=["ID_Object"],
-            filter_values=[object_id],
-        )
-
-        # organize stats value (most compute used here)
-        organized_stats = self._organize_stats_fast(stat_values)
-
-        # generate csv
-        stats_df = self._format_data(organized_stats, stat_names=stat_names)
-
-        return stats_df
-
-    def extract_and_save(self, surface_id: int, save_dir: str = None) -> None:
-        # this function is the funtion that gets called externally
-        # we can have this function as a ray method to help with distributed execution
         # check 1
         if (self.surface_id != -1) and (surface_id != 0):
             raise ValueError(
@@ -205,14 +176,44 @@ class TrackParserDistributed(Parser):
                 f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
             )
 
+        # gather info for current surface
+        surface_name = self.surface_names[surface_id]
+        stat_names = self.stats_names.get(surface_id)
+        stat_values = self.stats_values.get(surface_id)
+        track_id = self.track_ids.get(surface_id)
+        factor = self.factors.get(surface_id)
+
+        # update channel and surface names
+        stat_names = self._update_channel_info_fast(stat_names, factor)
+        stat_names = self._update_surface_info_fast(stat_names, factor)
+
+        # filter stats values by object ids (ie: ignore info related to trackids)
+        stat_values = self._filter_stats(
+            stats_values=stat_values,
+            filter_col_names=["ID_Object"],
+            filter_values=[track_id],
+        )
+
+        # organize stats value
+        organized_stats = self._organize_stats_fast(stat_values)
+
+        # generate csv
+        stats_df = self._format_data(organized_stats, stat_names=stat_names)
+
+        return stats_df
+
+    def extract_and_save(self, idx: int, save_dir: str = None) -> None:
+        # this function is the funtion that gets called externally
+        # we can have this function as a ray method to help with distributed execution
+
         # process surface
-        dataframe = self._process(surface_id)
+        dataframe = self._process(idx)
 
         # adjust surface_id based on init mode
         # save surface
         save_dir = save_dir if save_dir else self.save_dir
         if self.surface_id == -1:
-            self._save_csv(dataframe, save_dir, surface_id=surface_id)
+            self._save_csv(dataframe, save_dir, surface_id=idx)
         else:
             self._save_csv(dataframe, save_dir, surface_id=self.surface_id)
 

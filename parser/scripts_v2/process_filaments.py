@@ -130,7 +130,7 @@ def run_filament_parser_parallel(
                         )
                     print("\n")
 
-        run_summary[data_path]["total filaments"] = len(actors)
+            run_summary[data_path]["total filaments"] = len(actors)
 
         # generate results
         print(f"[info] -- found {len(actors)} actors")

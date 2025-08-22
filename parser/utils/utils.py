@@ -337,3 +337,69 @@ def run_ray_actors(actors: List, cpu_cores: int):
         tasks = [actor.extract_and_save.remote(idx=0) for _, actor in enumerate(actors)]
         ready_tasks, _ = ray.wait(tasks, num_returns=len(tasks))
         results = ray.get(ready_tasks)
+
+
+#########################################################################################
+#########################################################################################
+def get_valid_surfaces(data_path: str) -> List[int]:
+    """
+    Returns a list of surfaces that contains surface stats
+    because some surfaces might not contain statistics.
+
+    Args:
+        data_path (str): path to imaris file.
+
+    Returns:
+        List: _description_
+
+    ** WORKING V2
+    """
+    ims_obj = ImarisDataObject(data_path)
+    surface_names = ims_obj.get_object_names("Surface")
+    valid_surfaces = []
+    for idx, surface in enumerate(surface_names):
+        valid_surface = ims_obj.contains_surfaces(surface)
+        if valid_surface:
+            valid_surfaces.append(idx)
+            print(f"[info] -- surface id: {idx} -- surface: {surface} -- Valid")
+        else:
+            print(
+                f"[info] -- surface id: {idx} -- surface: {surface} -- Invalid Skipping"
+            )
+
+    return valid_surfaces
+
+
+#########################################################################################
+#########################################################################################
+def get_valid_surfaces_with_tracks(data_path: str) -> List[int]:
+    """
+    Returns a list of surfaces that contains surface stats and
+    track information because some surfaces might not contain tracks.
+
+    Here we are only concerned about checking if surfaces have track information.
+    Because we want to extract only the track statistics.
+
+    Args:
+        data_path (str): path to imaris file.
+
+    Returns:
+        List: _description_
+    """
+    ims_obj = ImarisDataObject(data_path)
+    surface_names = ims_obj.get_object_names("Surface")
+    valid_surfaces = []
+    for idx, surface in enumerate(surface_names):
+        valid_surface = ims_obj.contains_surfaces(surface)
+        valid_track = ims_obj.contains_tracks(surface)
+        if valid_surface and valid_track:
+            valid_surfaces.append(idx)
+            print(
+                f"[info] -- surface id: {idx} -- surface: {surface} -- Valid w/ Tracks"
+            )
+        else:
+            print(
+                f"[info] -- surface id: {idx} -- surface: {surface} -- Invalid no Tracks .. Skipping"
+            )
+
+    return valid_surfaces

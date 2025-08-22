@@ -1,6 +1,6 @@
 # List of directories that contains .ims files
 data_dir: [
-  "/home/shehan/Documents/projects/nih/nih_parsers/data/tracks/GFP #1 Sec2 Roi1 2x2 1h30min.ims"
+  "/home/shehan/Documents/projects/nih/nih_parsers/data/surface/"
 ]
 
 # File Path: Optional If You want to Run a single .ims File
@@ -12,4 +12,4 @@ save_dir: ['results/surface']
 valid_surfaces: -1 
 
 # specify number of cpu cores
-cpu_cores: 12
+cpu_cores: 8

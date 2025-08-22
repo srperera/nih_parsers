@@ -138,6 +138,18 @@ class SurfaceParserDistributed(Parser):
         Args:
             surface_id (int): _description_
         """
+        # check 1
+        if (self.surface_id != -1) and (surface_id != 0):
+            raise ValueError(
+                f"class is initialized with 1 surface, surface_id should be set to 0"
+            )
+
+        # check 2
+        if surface_id > len(self.surface_names):
+            raise ValueError(
+                f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
+            )
+
         # gather info for current surface
         surface_name = self.surface_names[surface_id]
         stat_names = self.stats_names.get(surface_id)
@@ -164,30 +176,18 @@ class SurfaceParserDistributed(Parser):
 
         return stats_df
 
-    def extract_and_save(self, surface_id: int, save_dir: str = None) -> None:
+    def extract_and_save(self, idx: int, save_dir: str = None) -> None:
         # this function is the funtion that gets called externally
         # we can have this function as a ray method to help with distributed execution
 
-        # check 1
-        if (self.surface_id != -1) and (surface_id != 0):
-            raise ValueError(
-                f"class is initialized with 1 surface, surface_id should be set to 0"
-            )
-
-        # check 2
-        if surface_id > len(self.surface_names):
-            raise ValueError(
-                f"surface_id {surface_id} exceeds number of surfaces available {len(self.surface_names)}"
-            )
-
         # process surface
-        dataframe = self._process(surface_id)
+        dataframe = self._process(idx)
 
         # adjust surface_id based on init mode
         # save surface
         save_dir = save_dir if save_dir else self.save_dir
         if self.surface_id == -1:
-            self._save_csv(dataframe, save_dir, surface_id=surface_id)
+            self._save_csv(dataframe, save_dir, surface_id=idx)
         else:
             self._save_csv(dataframe, save_dir, surface_id=self.surface_id)
 

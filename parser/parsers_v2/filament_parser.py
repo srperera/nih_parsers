@@ -11,7 +11,7 @@ from imaris.imaris import ImarisDataObject
 
 ################################################################################################
 ################################################################################################
-# @ray.remote
+@ray.remote
 class FilamentParserDistributed(Parser):
     """
     Extracts Filament Level Information From Imaris File.
@@ -66,10 +66,10 @@ class FilamentParserDistributed(Parser):
         # extract all information and saves it as a instance var
         if filament_id == -1:
             # configure all available filaments
-            self.filament_names = self.ims.get_object_names("Filament")
+            self.filament_names = self.ims.get_object_names("Filaments")
         else:
             # grab the filament we care about,
-            self.filament_names = self.ims.get_object_names("Filament")
+            self.filament_names = self.ims.get_object_names("Filaments")
             if (filament_id >= 0) and (filament_id < len(self.filament_names)):
                 self.filament_names = [self.filament_names[filament_id]]
             elif filament_id >= len(self.filament_names):
@@ -126,7 +126,7 @@ class FilamentParserDistributed(Parser):
         # store ims_filename
         self.ims_filename = ims_filename
 
-    def _process(self, surface_id: int) -> None:
+    def _process(self, filament_id: int) -> None:
         """
         Runs a single end to end parser pipeline on a single surface
         Steps:
@@ -142,16 +142,36 @@ class FilamentParserDistributed(Parser):
         Args:
             surface_id (int): _description_
         """
-        # gather info for current surface
-        surface_name = self.surface_names[surface_id]
-        stat_names = self.stats_names.get(surface_id)
-        stat_values = self.stats_values.get(surface_id)
-        object_id = self.object_ids.get(surface_id)
-        factor = self.factors.get(surface_id)
+        # check 1
+        if (self.filament_id != -1) and (filament_id != 0):
+            raise ValueError(
+                f"class is initialized with 1 filament, filament_id should be set to 0"
+            )
 
-        # update channel and surface names
-        stat_names = self._update_channel_info(stats_names=stat_names, factor=factor)
-        stat_names = self._update_surface_info(stats_names=stat_names, factor=factor)
+        # check 2
+        if filament_id > len(self.filament_names):
+            raise ValueError(
+                f"filament_id {filament_id} exceeds number of filaments available {len(self.filament_names)}"
+            )
+
+        # gather info for current surface
+        filament_name = self.filament_names[filament_id]
+        stat_names = self.stats_names.get(filament_id)
+        stat_values = self.stats_values.get(filament_id)
+        object_id = self.object_ids.get(filament_id)
+        factor = self.factors.get(filament_id)
+
+        # update channel
+        stat_names = self._update_channel_info_fast(stat_names, factor)
+
+        # update image level information
+        stat_names = self._update_image_level_info_fast(stat_names, factor)
+
+        # update image depth level information
+        stat_names = self._update_depth_level_info_fast(stat_names, factor)
+
+        # update level information
+        stat_names = self._update_level_info_fast(stat_names, factor)
 
         # filter stats values by object ids (ie: ignore info related to trackids)
         stat_values = self._filter_stats(

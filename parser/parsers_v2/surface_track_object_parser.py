@@ -12,7 +12,7 @@ from imaris.imaris import ImarisDataObject
 
 ###########################################################################################
 ###########################################################################################
-# @ray.remote
+@ray.remote
 class SurfaceTrackObjectParserDistributed(Parser):
     """
     Extracts Surface Level Information From Imaris File
@@ -99,22 +99,24 @@ class SurfaceTrackObjectParserDistributed(Parser):
 
         # gets all the track id information for every spot
         self.track_ids = {
-            spot_id: self.ims.get_track_ids(spot_name)
-            for spot_id, spot_name in enumerate(self.spot_names)
+            surface_id: self.ims.get_track_ids(surface_name)
+            for surface_id, surface_name in enumerate(self.surface_names)
         }
 
         # get all object information for every spot
         self.track_info = {
-            spot_id: self.ims.get_track_info(spot_name)
-            for spot_id, spot_name in enumerate(self.spot_names)
+            surface_id: self.ims.get_track_info(surface_name)
+            for surface_id, surface_name in enumerate(self.surface_names)
         }
 
         self.object_ids = {}
-        for spot_id, spot_name in enumerate(self.spot_names):
-            if self.ims.contains_tracks(spot_name):
-                self.object_ids[spot_id] = self.ims.get_track_object_ids(spot_name)
+        for surface_id, surface_name in enumerate(self.surface_names):
+            if self.ims.contains_tracks(surface_name):
+                self.object_ids[surface_id] = self.ims.get_track_object_ids(
+                    surface_name
+                )
             else:
-                self.object_ids[spot_id] = self.ims.get_object_ids(spot_name)
+                self.object_ids[surface_id] = self.ims.get_object_ids(surface_name)
 
     def _save_csv(
         self,

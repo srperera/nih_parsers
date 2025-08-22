@@ -46,3 +46,4 @@ and these objects dont? **
 
 # TODO:
     * Surface time step parser needs the script and need to update the surface_parser notebook to run that script. 
+    * Also the time step parser is based on tracks right? without tracks there cannot be time steps right?

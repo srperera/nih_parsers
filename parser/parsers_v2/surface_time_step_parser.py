@@ -23,7 +23,7 @@ from imaris.imaris import ImarisDataObject
 
 
 #############################################################################
-# @ray.remote
+@ray.remote
 class TimeStepSurfaceParserDistributed(Parser):
     """
     Extracts Surface Track Level Information From Imaris File.

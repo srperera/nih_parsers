@@ -12,7 +12,7 @@ import time
 
 ###########################################################################################
 ###########################################################################################
-@ray.remote
+# @ray.remote
 class SpotTrackObjectParserDistributed(Parser):
     """
     Extracts all the individual cells or spots in a given Spot Track.
@@ -287,7 +287,7 @@ class SpotTrackObjectParserDistributed(Parser):
             print(f"time update track info: {time.perf_counter() - start}")
             storage["final_df"] = stats_df
         else:
-            raise ValueError(
+            print(
                 f"Spot ID: {spot_id} -- Spot Name: {spot_name} -- Contains No Tracks, Track ID Unavilable."
             )
 

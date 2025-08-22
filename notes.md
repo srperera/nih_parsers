@@ -36,3 +36,13 @@ if we do this when we extract surface track objects what we are doing is from th
     only the ones that belong to track, but like in the spot track object parser if there is no tracks we are still grabbing the objects that dont belong to a track. is this right? should we be grabbing these items because they dont have track statistics.
 
 *** look at the the stats names for objects vs track_objects .. and see what the difference is **
+
+*** is there a difference between objects that belong to a track vs objects that dont belong to a track 
+in terms of how they are represented in the ims file. for example track_objects are in a seperate place 
+if there something that indicates in the statistics value dataframe that says these objects belong to a track
+and these objects dont? **
+
+** for the time step parsers .. do objects that dont belong to a track have first time points? **
+
+# TODO:
+    * Surface time step parser needs the script and need to update the surface_parser notebook to run that script. 
